@@ -1,0 +1,536 @@
+{
+ "erzeugt_von": "assets/ui-kit-bauen.py",
+ "stand": "2026-11-07",
+ "palette": "STYLE-CONTRACT-pixel.md §2 (D-13)",
+ "skala": "s = max(2, round(k / 29)); Bildgroesse = Raster x s CSS-px; k = Kachel in CSS-px",
+ "lage": "Inhalt: Mitte 50 %/56 % der Kachel. Muenzen: auf der Oberkante, Gold links, Mana Mitte, Ruhm rechts (D-37a)",
+ "icons": [
+  {
+   "name": "muenze-gold",
+   "titel": "Gold (Münze, rund)",
+   "datei": "ui/muenze-gold.svg",
+   "gruppe": "muenze",
+   "raster": "7x7"
+  },
+  {
+   "name": "muenze-mana",
+   "titel": "Mana (Kristall)",
+   "datei": "ui/muenze-mana.svg",
+   "gruppe": "muenze",
+   "raster": "7x7"
+  },
+  {
+   "name": "muenze-ruhm",
+   "titel": "Ruhm (Stern)",
+   "datei": "ui/muenze-ruhm.svg",
+   "gruppe": "muenze",
+   "raster": "7x7"
+  },
+  {
+   "name": "schloss",
+   "titel": "Schloss (gesperrt)",
+   "datei": "ui/schloss.svg",
+   "gruppe": "schloss",
+   "raster": "7x7"
+  },
+  {
+   "name": "kobold",
+   "titel": "Kobold",
+   "datei": "ui/kobold.svg",
+   "gruppe": "inhalt",
+   "raster": "9x9"
+  },
+  {
+   "name": "kobold-leer",
+   "titel": "Kobold (verbraucht)",
+   "datei": "ui/kobold-leer.svg",
+   "gruppe": "inhalt-leer",
+   "raster": "9x9"
+  },
+  {
+   "name": "waechter",
+   "titel": "Wächter",
+   "datei": "ui/waechter.svg",
+   "gruppe": "inhalt",
+   "raster": "9x9"
+  },
+  {
+   "name": "waechter-leer",
+   "titel": "Wächter (verbraucht)",
+   "datei": "ui/waechter-leer.svg",
+   "gruppe": "inhalt-leer",
+   "raster": "9x9"
+  },
+  {
+   "name": "bestie",
+   "titel": "Bestie",
+   "datei": "ui/bestie.svg",
+   "gruppe": "inhalt",
+   "raster": "9x9"
+  },
+  {
+   "name": "bestie-leer",
+   "titel": "Bestie (verbraucht)",
+   "datei": "ui/bestie-leer.svg",
+   "gruppe": "inhalt-leer",
+   "raster": "9x9"
+  },
+  {
+   "name": "boss",
+   "titel": "Boss",
+   "datei": "ui/boss.svg",
+   "gruppe": "inhalt",
+   "raster": "9x9"
+  },
+  {
+   "name": "boss-leer",
+   "titel": "Boss (verbraucht)",
+   "datei": "ui/boss-leer.svg",
+   "gruppe": "inhalt-leer",
+   "raster": "9x9"
+  },
+  {
+   "name": "falle",
+   "titel": "Falle",
+   "datei": "ui/falle.svg",
+   "gruppe": "inhalt",
+   "raster": "9x9"
+  },
+  {
+   "name": "falle-leer",
+   "titel": "Falle (verbraucht)",
+   "datei": "ui/falle-leer.svg",
+   "gruppe": "inhalt-leer",
+   "raster": "9x9"
+  },
+  {
+   "name": "schatz",
+   "titel": "Schatz",
+   "datei": "ui/schatz.svg",
+   "gruppe": "inhalt",
+   "raster": "9x9"
+  },
+  {
+   "name": "schatz-leer",
+   "titel": "Schatz (verbraucht)",
+   "datei": "ui/schatz-leer.svg",
+   "gruppe": "inhalt-leer",
+   "raster": "9x9"
+  },
+  {
+   "name": "brunnen",
+   "titel": "Brunnen",
+   "datei": "ui/brunnen.svg",
+   "gruppe": "inhalt",
+   "raster": "9x9"
+  },
+  {
+   "name": "brunnen-leer",
+   "titel": "Brunnen (verbraucht)",
+   "datei": "ui/brunnen-leer.svg",
+   "gruppe": "inhalt-leer",
+   "raster": "9x9"
+  },
+  {
+   "name": "reaktivieren",
+   "titel": "Reaktivieren (↻)",
+   "datei": "ui/reaktivieren.svg",
+   "gruppe": "marke",
+   "raster": "9x9"
+  },
+  {
+   "name": "schaedel",
+   "titel": "Schädel (Tod)",
+   "datei": "ui/schaedel.svg",
+   "gruppe": "marke",
+   "raster": "7x7"
+  },
+  {
+   "name": "boss-marke",
+   "titel": "Boss-Raum (Schädel mit Knochenkrone)",
+   "datei": "ui/boss-marke.svg",
+   "gruppe": "marke",
+   "raster": "7x7"
+  },
+  {
+   "name": "kampf",
+   "titel": "Kampf (gekreuzte Schwerter)",
+   "datei": "ui/kampf.svg",
+   "gruppe": "marke",
+   "raster": "9x9"
+  },
+  {
+   "name": "muenze-gold-2",
+   "titel": "Gold ×2",
+   "datei": "ui/muenze-gold-2.svg",
+   "gruppe": "muenze",
+   "raster": "9x8"
+  },
+  {
+   "name": "muenze-gold-haufen",
+   "titel": "Gold-Haufen (ab 3)",
+   "datei": "ui/muenze-gold-haufen.svg",
+   "gruppe": "muenze",
+   "raster": "9x9"
+  },
+  {
+   "name": "muenze-mana-2",
+   "titel": "Mana ×2",
+   "datei": "ui/muenze-mana-2.svg",
+   "gruppe": "muenze",
+   "raster": "9x8"
+  },
+  {
+   "name": "muenze-mana-haufen",
+   "titel": "Mana-Haufen (ab 3)",
+   "datei": "ui/muenze-mana-haufen.svg",
+   "gruppe": "muenze",
+   "raster": "9x9"
+  },
+  {
+   "name": "muenze-ruhm-2",
+   "titel": "Ruhm ×2",
+   "datei": "ui/muenze-ruhm-2.svg",
+   "gruppe": "muenze",
+   "raster": "9x8"
+  },
+  {
+   "name": "muenze-ruhm-haufen",
+   "titel": "Ruhm-Haufen (ab 3)",
+   "datei": "ui/muenze-ruhm-haufen.svg",
+   "gruppe": "muenze",
+   "raster": "9x9"
+  },
+  {
+   "name": "favicon",
+   "titel": "Favicon",
+   "datei": "ui/favicon.svg",
+   "gruppe": "favicon",
+   "raster": "16x16",
+   "png": [
+    "ui/favicon-16.png",
+    "ui/favicon-32.png",
+    "ui/favicon-48.png",
+    "ui/apple-touch-icon.png"
+   ]
+  }
+ ],
+ "raum_bild": {
+  "median": 0.06654738561404024,
+  "hell_p95": 0.1950239011700574,
+  "dunkel_p5": 2.191464821222607e-05,
+  "raster": 256,
+  "bloecke_einheitlich": "65536/65536",
+  "farben": 33
+ },
+ "kontrast": [
+  {
+   "icon": "muenze-gold",
+   "flaeche_raum": 8.08,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 8.7,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 4.91,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 2.33,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "muenze-mana",
+   "flaeche_raum": 6.7,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 7.21,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 4.07,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.93,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "muenze-ruhm",
+   "flaeche_raum": 5.84,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 6.29,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 3.55,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.69,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "schloss",
+   "flaeche_raum": 7.18,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 7.74,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 4.36,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 2.07,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "kobold",
+   "flaeche_raum": 6.51,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 7.0,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 3.95,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.88,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "kobold-leer",
+   "flaeche_raum": 3.35,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 3.61,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 2.03,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.03,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "waechter",
+   "flaeche_raum": 6.68,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 7.2,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 4.06,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.93,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "waechter-leer",
+   "flaeche_raum": 3.33,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 3.59,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 2.02,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.04,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "bestie",
+   "flaeche_raum": 7.54,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 8.12,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 4.58,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 2.18,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "bestie-leer",
+   "flaeche_raum": 5.79,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 6.23,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 3.51,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.67,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "boss",
+   "flaeche_raum": 6.31,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 6.8,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 3.83,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.82,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "boss-leer",
+   "flaeche_raum": 3.35,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 3.61,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 2.04,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.03,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "falle",
+   "flaeche_raum": 8.45,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 9.1,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 5.13,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 2.44,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "falle-leer",
+   "flaeche_raum": 5.44,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 5.86,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 3.3,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.57,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "schatz",
+   "flaeche_raum": 6.85,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 7.38,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 4.16,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.98,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "schatz-leer",
+   "flaeche_raum": 3.4,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 3.66,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 2.06,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.02,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "brunnen",
+   "flaeche_raum": 7.1,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 7.64,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 4.31,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 2.05,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "brunnen-leer",
+   "flaeche_raum": 3.73,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 4.01,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 2.26,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.08,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "reaktivieren",
+   "flaeche_raum": 7.54,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 8.12,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 4.58,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 2.18,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "schaedel",
+   "flaeche_raum": 10.11,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 10.89,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 6.14,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 2.92,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "boss-marke",
+   "flaeche_raum": 10.39,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 11.19,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 6.31,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 3.0,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "kampf",
+   "flaeche_raum": 9.9,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 10.66,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 6.01,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 2.86,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "muenze-gold-2",
+   "flaeche_raum": 7.94,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 8.55,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 4.82,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 2.29,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "muenze-gold-haufen",
+   "flaeche_raum": 6.62,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 7.13,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 4.02,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.91,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "muenze-mana-2",
+   "flaeche_raum": 6.28,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 6.76,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 3.81,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.81,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "muenze-mana-haufen",
+   "flaeche_raum": 8.23,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 8.87,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 5.0,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 2.38,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "muenze-ruhm-2",
+   "flaeche_raum": 5.86,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 6.31,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 3.56,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.69,
+   "kontur_bild_hell": 4.31
+  },
+  {
+   "icon": "muenze-ruhm-haufen",
+   "flaeche_raum": 6.45,
+   "kontur_raum": 1.24,
+   "flaeche_panel": 6.94,
+   "kontur_panel": 1.16,
+   "flaeche_bild_median": 3.91,
+   "kontur_bild_median": 2.05,
+   "flaeche_bild_hell": 1.86,
+   "kontur_bild_hell": 4.31
+  }
+ ]
+}

@@ -1,0 +1,672 @@
+<!doctype html>
+
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Dungeon Mogul — Karten-Probe</title>
+<link rel="icon" type="image/svg+xml" href="assets/ui/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="assets/ui/favicon-32.png" />
+<style>
+  :root{
+    --kontur:#171310; --nacht:#1D1813; --raum:#2B2721; --wand:#3A342A; --stein:#575040; --stein-hell:#746B57;
+    --panel:#262119; --text:#F5EFE2; --text-leise:#B8AD98; --amber:#FFB347; --amber-hell:#FFD98A; --amber-tief:#C87E2E;
+    --gold:#F2C14E; --mana:#56B8C8; --ruhm:#E8834A; --prestige:#E05A4E;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%; overflow-x:hidden; max-width:100vw;}
+  body{background:var(--nacht); color:var(--text); font-family:"Courier New",monospace; font-size:13px;
+    overflow:hidden; -webkit-tap-highlight-color:transparent;}
+  .app{height:100%; display:flex; flex-direction:column; max-width:100vw; overflow:hidden;}
+  .mitte, .hud{min-width:0;}
+  .schnitt{overflow-x:hidden;}
+  .hud{flex:0 0 auto; background:var(--panel); border-bottom:3px solid var(--kontur);
+    padding:calc(6px + env(safe-area-inset-top,0px)) 10px 6px; display:flex; gap:12px; align-items:center; z-index:30;}
+  .res{display:inline-flex; gap:3px; align-items:center; transition:transform .15s;}
+  .res.blitz{transform:scale(1.35);}
+  .r-gold{color:var(--gold);} .r-mana{color:var(--mana);} .r-ruhm{color:var(--ruhm);}
+  .hud .rechts{margin-left:auto; display:flex; gap:6px;}
+  .knopf{background:var(--wand); border:3px solid var(--stein-hell); color:var(--amber-hell); font-family:inherit;
+    font-size:11px; padding:4px 8px; cursor:pointer; min-height:34px;}
+  .knopf.an{border-color:var(--amber); color:var(--amber);}
+  #kHilfe{display:none; min-width:34px; font-weight:bold;}
+  .hud{overflow:hidden;}
+  @media (max-width:600px){
+    #kHandy{display:none;}
+    .hud{gap:8px; padding-left:8px; padding-right:8px;}
+    .knopf{padding:3px 6px; font-size:10px;}
+  }
+
+  .mitte{flex:1 1 auto; min-height:0; display:flex; justify-content:center; gap:16px;}
+  .schnitt{flex:0 1 auto; width:100%; max-width:820px; min-height:0; overflow-y:auto; position:relative;
+    overscroll-behavior:contain;}
+  .schnitt.handy{max-width:390px; border-left:2px solid var(--wand); border-right:2px solid var(--wand);}
+  .buehne{position:relative; margin:0 auto;}
+  canvas{display:block; image-rendering:pixelated; image-rendering:crisp-edges; touch-action:manipulation;}
+  #cvO{position:absolute; left:0; top:0; pointer-events:none; z-index:3;}
+  .label{position:absolute; z-index:2; font-size:10px; line-height:11px; color:var(--amber-hell); letter-spacing:1px; pointer-events:none;
+    background:rgba(23,19,16,.9); padding:0 4px; white-space:nowrap; text-shadow:1px 1px 0 var(--kontur);}
+  .label .tiefe{color:var(--text-leise); font-size:9px; margin-left:6px;}
+  .label.fels{color:var(--text-leise);}
+  .zahl{position:absolute; z-index:4; font-size:10px; line-height:11px; font-weight:bold; pointer-events:none; text-shadow:1px 1px 0 var(--kontur);
+    transform:translateX(-50%);}
+  .hinweis{position:absolute; z-index:2; font-size:11px; color:var(--text-leise); pointer-events:none; text-align:center;
+    transform:translate(-50%,-50%); white-space:nowrap; background:rgba(23,19,16,.85); padding:1px 4px;}
+  .hinweis b{color:var(--amber); font-weight:normal;} .hinweis i{color:var(--ruhm); font-style:normal;}
+  .weckruf{position:sticky; left:0; right:0; z-index:25; display:none; background:var(--panel);
+    border:2px solid var(--amber-tief); padding:7px 10px; font-size:12px; cursor:pointer; text-align:center; margin:0 8px;}
+  .weckruf.an{display:block;}
+  .weckruf.oben{top:6px;} .weckruf.unten{bottom:8px;}
+  .weckruf .ko{color:var(--prestige);} .weckruf .g{color:var(--gold);} .weckruf .m{color:var(--mana);}
+
+  .seite{display:none; flex:0 0 280px; overflow-y:auto; background:var(--panel); border-left:3px solid var(--kontur);
+    padding:14px; line-height:1.5; font-size:12px;}
+  .seite h2{font-size:13px; color:var(--amber-hell); letter-spacing:1px; font-weight:normal; margin:12px 0 6px;}
+  .seite h2:first-of-type{margin-top:0;}
+  .seite p{margin:0 0 6px;}
+  .seite .leg{display:flex; align-items:center; gap:8px; margin:3px 0;}
+  .seite .leg img{image-rendering:pixelated; flex:0 0 auto;}
+  .seite ol{padding-left:18px;} .seite li{margin:4px 0;}
+  .seite .klein{color:var(--text-leise); font-size:11px;}
+  .seite .fragen li{color:var(--amber-hell);}
+  .seite .zu, .seite .los{display:none;}
+  @media (min-width:900px){ .seite{display:block;} .seite .nurhandy{display:none;} }
+  @media (max-width:899px){
+    #kHilfe{display:inline-block;}
+    .seite .nurbrowser{display:none;}
+    .seite.auf{display:block; position:fixed; left:0; right:0; top:0; bottom:0; z-index:500; border-left:none;
+      padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(20px + env(safe-area-inset-bottom,0px)); font-size:13px;}
+    .seite.auf h2:first-of-type{padding-right:48px;}
+    .seite .zu{display:block; position:absolute; right:10px; top:calc(8px + env(safe-area-inset-top,0px)); min-width:40px;}
+    .seite .los{display:block; width:100%; margin-top:14px; font-size:13px; min-height:44px;}
+  }
+
+  .flug{position:fixed; z-index:400; font-size:13px; font-weight:bold; pointer-events:none;
+    animation:flug .8s ease-out forwards; text-shadow:1px 1px 0 var(--kontur);}
+  @keyframes flug{0%{transform:translateY(0); opacity:1;} 100%{transform:translateY(-40px); opacity:0;}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hud">
+    <span class="res r-gold" id="hGold">◇ <b>75</b></span>
+    <span class="res r-mana" id="hMana">◆ <b>30</b></span>
+    <span class="res r-ruhm" id="hRuhm">★ <b>9</b></span>
+    <div class="rechts">
+      <button class="knopf" id="kModus" title="Wie kommen die Helden hinunter? Treppe, Portal, Aufzug">Treppe</button>
+      <button class="knopf" id="kTempo">Tempo ×1</button>
+      <button class="knopf" id="kHandy" title="Handy-Ansicht im Browser">📱</button>
+      <button class="knopf" id="kHilfe" aria-label="Was du siehst und Fragen">?</button>
+    </div>
+  </div>
+  <div class="mitte">
+    <div class="schnitt" id="schnitt">
+      <div class="weckruf oben" id="wOben"></div>
+      <div class="buehne" id="buehne"><canvas id="cv"></canvas><canvas id="cvO" aria-hidden="true"></canvas></div>
+      <div class="weckruf unten" id="wUnten"></div>
+    </div>
+    <aside class="seite" id="seite" aria-label="Was du siehst und Fragen">
+      <button class="knopf zu" id="kZu" aria-label="Schließen">✕</button>
+      <h2>DUNGEON MOGUL · KARTEN-PROBE</h2>
+      <div class="klein">Eine Probe, kein fertiges Spiel. Der Kampf ist Zufall, nichts wird gespeichert.</div>
+      <h2>WAS DU SIEHST</h2>
+      <p>Ein Schnitt durch deinen Dungeon, jede Zeile ist eine Ebene: vier Kammern und am Ende die Boss-Halle mit dem Hort.
+        Helden steigen links die Treppe hinab und laufen die Kammern der Reihe nach ab.
+        Was sie dort lassen, liegt als Münzen auf der Kante der Kammer.
+        Sammelst du nicht ein, wandern die Münzen nach einer Weile an der Bernstein-Ader im Fels zum Hort.</p>
+      <h2>FÜNF FRAGEN AN DICH</h2>
+      <ol class="fragen">
+        <li>Siehst du, wo der Held läuft und wo es hakt?</li>
+        <li>Erkennst du Kammer, Inhalt, Münzen und k.o.?</li>
+        <li>Wirkt es ruhig oder zu voll?</li>
+        <li>Treppe, Aufzug oder Portal: Was passt für dich?</li>
+        <li>Woran erinnert es dich?</li>
+      </ol>
+      <div class="klein">Ein, zwei Sätze je Frage reichen. Das Bauchgefühl zählt.</div>
+      <h2>SO LIEST MAN DIE KARTE</h2>
+      <div id="legende"></div>
+      <h2>BEDIENEN</h2>
+      <ol>
+        <li>Münze auf der Kammer-Kante antippen: sammelt diese Sorte der Kammer.</li>
+        <li>Hort in der Boss-Halle antippen: sammelt alles einer Sorte.</li>
+        <li>↻ antippen: belebt ein besiegtes Monster wieder (kostet 5 ◆).</li>
+        <li>„Tiefer graben“ unten: neue Ebene, die Treppe wächst mit.</li>
+        <li>Knopf „Treppe“ oben wechselt zu Portal und Aufzug. „Tempo“ macht alles doppelt so schnell.</li>
+      </ol>
+      <div class="klein nurbrowser" style="margin-top:12px">📱 oben zeigt die Handy-Breite im Browser.</div>
+      <div class="klein nurhandy" style="margin-top:12px">Dieses Blatt öffnest du jederzeit wieder mit „?“ oben rechts.</div>
+      <button class="knopf los" id="kLos">Los geht’s</button>
+    </aside>
+  </div>
+</div>
+
+<script>
+'use strict';
+const P = { kontur:'#171310', nacht:'#1D1813', raum:'#2B2721', wand:'#3A342A', stein:'#575040', steinH:'#746B57',
+  panel:'#262119', text:'#F5EFE2', amber:'#FFB347', amberH:'#FFD98A', amberT:'#C87E2E',
+  gold:'#F2C14E', mana:'#56B8C8', ruhm:'#E8834A', prestige:'#E05A4E' };
+
+const UI = 'assets/ui/';
+const ICONS = ['kobold','kobold-leer','waechter','waechter-leer','bestie','bestie-leer','falle','falle-leer','schatz','schatz-leer',
+  'brunnen','brunnen-leer','boss','boss-marke','kampf','reaktivieren','schloss',
+  'muenze-gold','muenze-gold-2','muenze-gold-haufen','muenze-mana','muenze-mana-2','muenze-mana-haufen',
+  'muenze-ruhm','muenze-ruhm-2','muenze-ruhm-haufen'];
+const IMG = {}, RASTER = {};
+
+const ZELLE = 8, SCHACHT = 12, GANG = 4, OBEN = 24, BAND = 8, WANDH = 8, BODEN = 16, BOSS_MIN = 32, TIEF = 24;
+const EH = BAND + WANDH + BODEN;          // 32 sp
+const LAUF = 8;                           // Heldenweg ab Boden + 8 (Zeilen +8 .. +14), Bodenkante +15
+const KAMMER_BREIT = 32, KAMMER_SCHMAL = 24;
+let W = 193, R = 32, BX = 0, BW = 37, s = 2, H = 0;
+
+const NAMEN = ['Moosgang','Tropfhalle','Glutkeller','Wurzelgrund','Harzgrotte','Echokammer','Ascheschlund','Bernsteinader'];
+const START = [['kobold','falle','waechter','schatz'], ['kobold','kobold','brunnen','waechter'], ['waechter','schatz','bestie','falle']];
+const MONSTER = new Set(['kobold','waechter','bestie']);
+const WERT = { gold:3, mana:2, ruhm:1 };
+const hud = { gold:75, mana:30, ruhm:9 };
+const ebenen = [];
+const wanderer = [];
+let tempo = 1;
+let modus = 'treppe';                 // 'treppe' (Standard) | 'portal' | 'aufzug' (nur Vergleich)
+const aufzug = { y: 4, ziel: null, liste: [], halt: 0, last: false };
+let tAlt = 0;
+
+function neueEbene(typen){
+  const i = ebenen.length;
+  ebenen.push({ name:NAMEN[i % NAMEN.length], tiefe:(i+1)*20,
+    raeume: typen.map(t => ({ typ:t, tot:false, m:{ gold:[], mana:[], ruhm:[] } })),
+    hort:{ gold:0, mana:0 }, hx:null, ziel:0, warte:0, laeuft:false, naechst:performance.now() + 500 + i*650, blend:null, portal:0 });
+}
+START.forEach(neueEbene);
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const cvO = document.getElementById('cvO'), ctxO = cvO.getContext('2d');      // obere Ebene: wandernde Muenzen ueber den Schildern
+const bg = document.createElement('canvas'), bgx = bg.getContext('2d');      // statischer Grund (Tiles), nur bei Layout-Wechsel neu
+const buehne = document.getElementById('buehne'), schnitt = document.getElementById('schnitt');
+let g = ctx;                                                                  // aktuelles Zeichenziel
+function hash(x, y){ let h = (x*374761393 + y*668265263) ^ 0x5bd1e995; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+function px(x, y, w, h, f){ g.fillStyle = f; g.fillRect(x, y, w, h); }
+const MESS = { an:false, rects:null, frames:0, treffer:0, beispiel:null, maxPuls:0, heldGesehen:0, muenzGesehen:0, puls:[] };
+function icon(name, x, y){
+  const im = IMG[name]; if (!im) return; const [w, h] = RASTER[name]; x = Math.round(x); y = Math.round(y);
+  g.drawImage(im, x, y, w, h);
+  if (MESS.an && MESS.rects && name.startsWith('muenze')) MESS.rects.muenze.push({ x, y, w, h, name });
+}
+const raumX = k => SCHACHT + k*(R + GANG);
+const ebeneY = i => OBEN + i*EH;
+const bodenY = i => ebeneY(i) + BAND + WANDH;
+const inhaltX = k => { const kx = raumX(k); return Math.round(Math.max(kx + R/2 - 4.5, kx + 8)); };   // links vom Inhalt Platz fuer den Helden
+const hortX = art => BX + BW - (art === 'gold' ? 20 : 11);                  // linke Kante des Hort-Haufens (9 sp), auf der Kante
+const BOSS_X = () => BX + 3;
+
+function layout(){
+  const breit = schnitt.clientWidth;
+  s = breit >= 740 ? 4 : breit >= 560 ? 3 : 2;
+  W = Math.max(SCHACHT + 4*(KAMMER_SCHMAL + GANG) + BOSS_MIN, Math.floor((breit - 4) / s));
+  R = W - SCHACHT - 4*GANG - BOSS_MIN >= 4*KAMMER_BREIT ? KAMMER_BREIT : KAMMER_SCHMAL;
+  BX = SCHACHT + 4*(R + GANG);
+  BW = W - BX;
+  H = OBEN + ebenen.length*EH + EH + TIEF + 6;
+  [cv, cvO, bg].forEach(c => { c.width = W; c.height = H; });
+  [cv, cvO].forEach(c => { c.style.width = (W*s) + 'px'; c.style.height = (H*s) + 'px'; });
+  buehne.style.width = (W*s) + 'px'; buehne.style.height = (H*s) + 'px';
+  ctx.imageSmoothingEnabled = ctxO.imageSmoothingEnabled = bgx.imageSmoothingEnabled = false;
+  baueGrund();
+  overlays();
+}
+
+let zahlen = [];
+function overlays(){
+  buehne.querySelectorAll('.label,.zahl,.hinweis').forEach(e => e.remove());
+  zahlen = [];
+  const L = (cls, html, x, y) => { const e = document.createElement('div'); e.className = cls; e.innerHTML = html;
+    e.style.left = (x*s) + 'px'; e.style.top = (y*s) + 'px'; buehne.appendChild(e); return e; };
+  ebenen.forEach((e, i) => {
+    L('label', `E${i+1} ${e.name.toUpperCase()}<span class="tiefe">−${e.tiefe} m</span>`, SCHACHT + 2, ebeneY(i));
+    const fy = bodenY(i);
+    zahlen.push({ gold: L('zahl r-gold', '', hortX('gold') + 4.5, fy + 1), mana: L('zahl r-mana', '', hortX('mana') + 4.5, fy + 1) });
+  });
+  const by = ebeneY(ebenen.length);
+  L('label fels', `E${ebenen.length+1} NOCH FELS`, SCHACHT + 2, by);
+  L('hinweis', '⛏ Tiefer graben · <b>60◇ 20◆</b>', SCHACHT + (W - SCHACHT)/2, by + BAND + (EH - BAND)/2);
+  L('hinweis', 'Härtere Helden ab <i>★ Ruhm 8</i>', SCHACHT + (W - SCHACHT)/2 + 4, by + EH + TIEF/2);
+}
+
+function fels(x0, y0, w, h){                       // dunkler Fels fuer Zwischenraeume (Gang-Decke, Portal-Schacht)
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++){
+    const r = hash(x, y);
+    px(x, y, 1, 1, r > 0.985 ? P.stein : r > 0.92 ? P.wand : r > 0.8 ? P.nacht : P.kontur);
+  }
+}
+function tileBand(x0, y0, cx, cy){                 // Fels-Band nach der Fels-Vorlage: dunkel, ein Brocken, selten eine Seitenader
+  for (let y = 0; y < ZELLE; y++) for (let x = 0; x < ZELLE; x++) px(x0 + x, y0 + y, 1, 1, hash(x0 + x, y0 + y) > 0.78 ? P.nacht : P.kontur);
+  const v = hash(cx*3 + 1, cy*5 + 2);
+  if (v < 0.6){
+    const bx = x0 + 1 + ((hash(cx, cy + 9)*3) | 0), by = y0 + ((hash(cy, cx + 4)*2) | 0);
+    px(bx, by, 3, 2, P.wand); px(bx, by, 1, 1, P.stein);                    // Brocken, Licht oben links
+  }
+  if (v > 0.88){                                                          // Seitenader laeuft schraeg in die Hauptader
+    const ax = x0 + 2 + ((hash(cx + 7, cy)*3) | 0);
+    px(ax, y0 + 3, 1, 1, P.amberT); px(ax + 1, y0 + 4, 1, 1, P.amberT); px(ax + 2, y0 + 5, 1, 1, P.amberT);
+  }
+}
+function tileWand(x0, y0, cx, cy){                 // Krone · Ziegel 3 · Fuge · Ziegel 2 · Schatten auf den Boden
+  for (let y = 0; y < ZELLE; y++) for (let x = 0; x < ZELLE; x++){
+    let f;
+    if (y === 0) f = P.stein;
+    else if (y === 4 || y === 7) f = P.kontur;
+    else f = ((y < 4 ? x : x + 4) % ZELLE === 0) ? P.kontur : P.wand;
+    px(x0 + x, y0 + y, 1, 1, f);
+  }
+  const v = hash(cx*7 + 3, cy*11 + 5);
+  if (v < 0.25) px(x0 + 1, y0 + 1, 2, 1, P.stein);                        // Licht-Kante oben links
+  else if (v < 0.4){ px(x0 + 5, y0 + 1, 1, 1, P.kontur); px(x0 + 6, y0 + 2, 1, 1, P.kontur); }   // Riss
+  else if (v < 0.5) px(x0 + 6, y0 + 5, 1, 1, P.stein);                    // abgeschlagene Ecke
+}
+function tileBoden(x0, y0, cx, cy){                // Steinplatte 8 x 8, Fuge oben und links, ruhig
+  for (let y = 0; y < ZELLE; y++) for (let x = 0; x < ZELLE; x++)
+    px(x0 + x, y0 + y, 1, 1, (x === 0 || y === 0) ? P.wand : P.raum);
+  const v = hash(cx*13 + 7, cy*3 + 1);
+  if (v < 0.18) px(x0 + 3 + ((hash(cx, cy)*3) | 0), y0 + 4, 1, 1, P.wand);                // Kiesel
+  else if (v < 0.28){ px(x0 + 5, y0 + 2, 1, 1, P.wand); px(x0 + 6, y0 + 3, 1, 1, P.wand); } // Sprung
+  else if (v < 0.33) px(x0 + 1, y0 + 1, 1, 1, P.stein);                                     // Licht-Pixel
+}
+const STX = [1, 3, 4, 6];
+const stufeX = (c, k) => c % 2 ? STX[3 - k] : STX[k];
+function tileTreppe(y0, c){                        // je Zelle 4 Stufen, Lauf wechselt die Richtung (Zickzack im Schacht)
+  for (let k = 0; k < 4; k++){
+    const sx = stufeX(c, k), yy = y0 + 2*k;
+    px(sx, yy, 4, 1, P.steinH); px(sx, yy + 1, 4, 1, P.stein);
+    if (hash(c, k + 40) > 0.8) px(sx + 1 + ((hash(k, c)*2) | 0), yy, 1, 1, P.stein);   // abgetretene Stufe
+  }
+}
+function treppeX(y){                               // x des Helden auf der Treppe (Fuesse auf der Stufe)
+  const f = Math.max(0, y + 7 - OBEN), c = Math.floor(f / ZELLE), k = Math.min(3, Math.floor((f - c*ZELLE) / 2));
+  return stufeX(c, k);
+}
+
+const DEKO = [];                                   // {i, k, art, x, y, w, h} fuer die Messung
+function baueGrund(){
+  g = bgx; DEKO.length = 0;
+  px(0, 0, W, H, P.nacht);
+  grundOberflaeche();
+  grundSchacht(OBEN, H - OBEN);
+  ebenen.forEach((e, i) => grundEbene(i));
+  grundBauplatz();
+  g = ctx;
+}
+function grundOberflaeche(){
+  px(0, 0, W, OBEN, P.panel);
+  for (let x = 0; x < W; x++){
+    const h = 8 + Math.round(6*Math.sin(x*0.09) + 4*Math.sin(x*0.23 + 1.3) + 2*hash(x, 7));
+    px(x, OBEN - h, 1, h, P.wand);
+    if (hash(x, 3) > 0.93) px(x, OBEN - h, 1, 1, P.stein);
+  }
+  px(1, OBEN - 12, 10, 12, P.kontur);                                       // Schacht-Eingang (Torbogen)
+  px(2, OBEN - 13, 8, 1, P.kontur); px(3, OBEN - 14, 6, 1, P.kontur);
+  px(0, OBEN - 13, 1, 13, P.steinH); px(11, OBEN - 13, 1, 13, P.steinH);
+}
+function grundSchacht(y0, h){
+  px(0, y0, SCHACHT, h, P.kontur);
+  px(0, y0, 1, h, P.stein); px(SCHACHT - 1, y0, 1, h, P.stein);
+  if (modus === 'treppe'){
+    for (let c = 0; y0 + c*ZELLE < y0 + h; c++) tileTreppe(y0 + c*ZELLE, c);
+  } else if (modus === 'aufzug'){
+    px(2, y0, 1, h, P.wand); px(9, y0, 1, h, P.wand);                       // Fuehrungsschienen
+    for (let y = y0 + 2; y < y0 + h; y += ZELLE){ px(2, y, 1, 1, P.stein); px(9, y, 1, 1, P.stein); }
+  } else {
+    fels(1, y0, SCHACHT - 2, h);                                            // Portal: kein Schacht, nur Fels
+  }
+}
+function grundEbene(i){
+  const y = ebeneY(i), wy = y + BAND, fy = wy + WANDH;
+  for (let cx = 0; SCHACHT + cx*ZELLE < W; cx++) tileBand(SCHACHT + cx*ZELLE, y, cx, i*31 + 3);
+  const a0 = SCHACHT + 2, a1 = hortX('mana') + 5, ay = y + 6;
+  for (let x = a0; x < a1; x++){                                            // Hauptader: Bernstein-tief, selten ein Buckel, selten ein Funke
+    const zx = ((x - SCHACHT) / ZELLE) | 0, lx = (x - SCHACHT) % ZELLE, hb = hash(zx, i + 50), buckel = (hb*6) | 0;
+    const yy = (hb < 0.35 && (lx === buckel || lx === buckel + 1)) ? ay - 1 : ay;
+    px(x, yy, 1, 1, (lx === 3 && hash(zx, i + 70) > 0.85) ? P.amber : P.amberT);
+  }
+  px(hortX('gold') + 4, ay + 1, 1, 1, P.amberT); px(hortX('mana') + 4, ay + 1, 1, 1, P.amberT);   // Ader speist den Hort
+  for (let k = 0; k < 4; k++){
+    const gx = raumX(k) + R;
+    fels(gx, wy, GANG, WANDH + LAUF - 1);
+    px(gx, fy + LAUF - 1, GANG, 1, P.stein);
+    px(gx, fy + LAUF, GANG, 7, P.raum); px(gx + (k % 2 ? 3 : 0), fy + LAUF, 1, 7, P.wand);
+    px(gx, fy + BODEN - 1, GANG, 1, P.stein);
+  }
+  const kammern = [0,1,2,3].map(k => [raumX(k), R]).concat([[BX, BW]]);
+  kammern.forEach(([kx, kw], k) => {
+    g.save(); g.beginPath(); g.rect(kx, wy, kw, WANDH + BODEN); g.clip();
+    for (let cx = 0; cx*ZELLE < kw; cx++){
+      const id = i*7 + k;
+      tileWand(kx + cx*ZELLE, wy, cx, id);
+      tileBoden(kx + cx*ZELLE, fy, cx, id*2);
+      tileBoden(kx + cx*ZELLE, fy + ZELLE, cx, id*2 + 1);
+    }
+    g.restore();
+    px(kx, fy + BODEN - 1, kw, 1, P.stein);                                // Bodenkante
+    [kx, kx + kw - 2].forEach(p => { px(p, wy, 2, WANDH + BODEN, P.stein); px(p, wy, 1, WANDH + BODEN, P.steinH);
+      px(p, fy + LAUF, 2, 7, P.raum); });
+    const cl = k < 4 ? inhaltX(k) : BOSS_X();
+    px(cl - 1, fy + 3, 11, 11, P.raum);
+    px(cl + 1, fy + 14, 7, 1, P.kontur);
+  });
+  px(SCHACHT - 1, fy + LAUF, 2, 7, P.raum);                                 // Durchgang Schacht -> Kammer 1
+  for (let k = 0; k < 4; k++){
+    const d = hash(i*5 + k, 77), kx = raumX(k);
+    if (d < 0.55){                                                          // Fackel an der Wand, steht still
+      const fx = kx + (R >> 1) + (k % 2 ? 3 : -3);
+      px(fx, wy + 4, 1, 2, P.stein); px(fx, wy + 3, 1, 1, P.amberT);
+      DEKO.push({ i, k, art:'fackel', x:fx, y:wy + 3, w:1, h:3 });
+    }
+    if (d > 0.35){                                                          // Geroell im hinteren Boden, rechts vom Inhalt
+      const gx = inhaltX(k) + 10, gy = fy + 4;
+      if (gx + 4 <= kx + R - 2){
+        px(gx + 1, gy, 2, 1, P.stein); px(gx, gy + 1, 4, 2, P.wand); px(gx + 1, gy + 1, 1, 1, P.steinH); px(gx, gy + 3, 4, 1, P.kontur);
+        DEKO.push({ i, k, art:'geroell', x:gx, y:gy, w:4, h:4 });
+      }
+    }
+  }
+}
+function grundBauplatz(){
+  const i = ebenen.length, y = ebeneY(i), fy = y + BAND;
+  fels(SCHACHT, y, W - SCHACHT, EH);
+  for (let x = SCHACHT + 3; x < W - 3; x++){ if ((x >> 1) % 2){ px(x, fy + 2, 1, 1, P.steinH); px(x, y + EH - 4, 1, 1, P.steinH); } }
+  for (let yy = fy + 2; yy < y + EH - 3; yy++){ if ((yy >> 1) % 2){ px(SCHACHT + 3, yy, 1, 1, P.steinH); px(W - 4, yy, 1, 1, P.steinH); } }
+  const gy = y + EH;                                                        // gesperrte Tiefe
+  for (let yy = gy; yy < gy + TIEF; yy++) for (let x = SCHACHT; x < W; x++) px(x, yy, 1, 1, ((x + yy) % 6 < 3) ? P.kontur : P.nacht);
+  icon('schloss', SCHACHT + 4, gy + 8);
+}
+
+function held(x, y, schritt){
+  x = Math.round(x); y = Math.round(y);
+  px(x+1, y, 3, 2, P.amberH);            // Kopf
+  px(x, y+2, 5, 3, P.amber);             // Koerper
+  px(x+1, y+2, 3, 1, P.amberH);
+  if (schritt){ px(x, y+5, 1, 2, P.kontur); px(x+3, y+5, 1, 1, P.kontur); px(x+4, y+6, 1, 1, P.kontur); }
+  else { px(x+1, y+5, 1, 2, P.kontur); px(x+3, y+5, 1, 2, P.kontur); }
+  if (MESS.an && MESS.rects) MESS.rects.held.push({ x, y, w:5, h:7 });
+}
+function zeichneAufzug(){
+  const y = Math.round(aufzug.y);
+  px(5, 0, 2, y, P.steinH);                                                 // Seil
+  px(2, y, 8, 10, P.kontur);
+  px(2, y, 8, 1, P.steinH); px(2, y + 9, 8, 1, P.steinH);
+  px(2, y, 1, 10, P.stein); px(9, y, 1, 10, P.stein);
+  px(3, y + 1, 6, 1, P.amberT);                                             // Licht in der Kabine
+  if (aufzug.last) held(4, y + 2, false);
+}
+const RING = [[0,2],[1,1],[2,0],[3,0],[4,1],[5,2],[5,3],[5,4],[4,5],[3,6],[2,6],[1,5],[0,4],[0,3]];
+function zeichneEbene(i, t){
+  const e = ebenen[i], fy = bodenY(i);
+  let puls = 0;
+  if (modus === 'portal'){                                                  // Portal: ruhig, leuchtet nur bei Ankunft auf
+    const an = e.portal > t;
+    RING.forEach(([dx, dy]) => px(3 + dx, fy + LAUF + dy, 1, 1, an ? P.amberH : P.amberT));
+    if (an) for (let d = 0; d < 5; d++) px(3 + ((hash(d, t/50|0) * 6) | 0), fy + LAUF + ((hash(t/50|0, d) * 7) | 0), 1, 1, P.amberH);
+  }
+  const pulsK = e.raeume.findIndex(r => r.tot);
+  const blink = ((t / 450) | 0) % 2 === 1;
+  e.raeume.forEach((r, k) => {
+    const kx = raumX(k), cl = inhaltX(k);
+    let name = r.typ;
+    if (r.tot){ name = (k === pulsK && blink) ? r.typ + '-leer' : 'reaktivieren'; if (k === pulsK) puls++; }
+    icon(name, cl, fy + 5);
+    ['gold','mana','ruhm'].forEach((art, sl) => {
+      const n = r.m[art].length; if (!n) return;
+      const nm = n === 1 ? `muenze-${art}` : n === 2 ? `muenze-${art}-2` : `muenze-${art}-haufen`;
+      const [w, h] = RASTER[nm] || [7, 7];
+      icon(nm, kx + R*(1 + 2*sl)/6 - w/2, fy + 1 - h);
+    });
+  });
+  icon('boss', BOSS_X(), fy + 5);
+  icon('boss-marke', BOSS_X() + 1, fy - 7);
+  ['gold','mana'].forEach(art => {
+    const n = e.hort[art]; if (!n) return;
+    const nm = n === 1 ? `muenze-${art}` : n === 2 ? `muenze-${art}-2` : `muenze-${art}-haufen`;
+    const [w, h] = RASTER[nm] || [9, 9];
+    icon(nm, hortX(art) + (9 - w)/2, fy + 1 - h);
+  });
+  if (e.hx !== null) held(e.hx, fy + LAUF, e.laeuft && ((t / 150) | 0) % 2 === 1);
+  if (e.blend && e.blend.bis > t){
+    const cx = e.blend.k < 4 ? inhaltX(e.blend.k) + 4.5 : BOSS_X() + 4.5;
+    for (let d = 0; d < 10; d++){ const a = d*0.63, rr = 6 + 2*hash(d, (t/60)|0); px(Math.round(cx + Math.cos(a)*rr), Math.round(fy + 9 + Math.sin(a)*rr*0.6), 1, 1, P.steinH); }
+    icon('kampf', cx - 4.5, fy + 4);
+  }
+  if (MESS.an) MESS.puls[i] = puls;
+}
+
+function zeichne(t){
+  g = ctx;
+  ctx.drawImage(bg, 0, 0);
+  if (MESS.an){ MESS.rects = { held:[], muenze:[] }; MESS.puls = []; }
+  for (let k = 0; k < 3; k++){ const hop = ((t/400 + k) | 0) % 2; held(15 + k*6, OBEN - 8 - hop, false); }   // wartende Helden
+  ebenen.forEach((e, i) => zeichneEbene(i, t));
+  if (modus === 'aufzug') zeichneAufzug();
+  treppenGaenger.forEach(gg => held(gg.x, gg.y, ((t / 150) | 0) % 2 === 1));
+  g = ctxO; ctxO.clearRect(0, 0, W, H);
+  wanderer.forEach(w => { const [ww, hh] = RASTER['muenze-' + w.art] || [7,7]; icon('muenze-' + w.art, w.x - ww/2, w.y - hh); });
+  g = ctx;
+  if (MESS.an) messeBild();
+}
+
+const schneidet = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+function messeBild(){
+  const r = MESS.rects; MESS.frames++;
+  if (r.held.length) MESS.heldGesehen++;
+  if (r.muenze.length) MESS.muenzGesehen++;
+  r.held.forEach(h => r.muenze.forEach(m => { if (schneidet(h, m)){ MESS.treffer++; if (!MESS.beispiel) MESS.beispiel = { h, m }; } }));
+  MESS.maxPuls = Math.max(MESS.maxPuls, ...MESS.puls.map(x => x || 0), 0);
+}
+window.__wf6 = {
+  info: () => ({ W, R, BX, BW, s, H, kern: SCHACHT + 4*R + 4*GANG + BOSS_MIN, zellen: R / ZELLE, ebenen: ebenen.length }),
+  deko: () => DEKO.map(d => Object.assign({}, d)),
+  wege: () => ebenen.map((e, i) => { const fy = bodenY(i);
+    return { held: { x: SCHACHT - 2, y: fy + LAUF, w: BX + 2 - (SCHACHT - 2), h: 7 },
+             gaenge: [0,1,2,3].map(k => ({ x: raumX(k) + R, y: ebeneY(i) + BAND, w: GANG, h: WANDH + BODEN })) }; }),
+  messen(an){ Object.assign(MESS, { an, rects:null, frames:0, treffer:0, beispiel:null, maxPuls:0, heldGesehen:0, muenzGesehen:0, puls:[] }); },
+  stand: () => ({ frames: MESS.frames, treffer: MESS.treffer, beispiel: MESS.beispiel, maxPuls: MESS.maxPuls,
+    heldGesehen: MESS.heldGesehen, muenzGesehen: MESS.muenzGesehen }),
+  ebenen, wanderer, hud,
+  tempo(n){ tempo = n; document.getElementById('kTempo').textContent = 'Tempo ×' + n; }
+};
+
+function kampf(e, k, t){
+  e.blend = { k, bis: t + 650 };
+  if (k === 4){ e.hort.gold += 1; if (Math.random() < .5) e.hort.mana += 1; return; }
+  const r = e.raeume[k];
+  if (r.tot) return;
+  const lege = art => { if (r.m[art].length < 6) r.m[art].push(t); };
+  if (MONSTER.has(r.typ)){
+    if (Math.random() < .75) lege(Math.random() < .55 ? 'gold' : 'mana');
+    if (Math.random() < .03) lege('ruhm');
+    if (Math.random() < { kobold:.09, waechter:.04, bestie:.03 }[r.typ]) r.tot = true;
+  } else if (r.typ === 'falle'){ if (Math.random() < .6) lege('mana'); }
+  else if (r.typ === 'schatz'){ lege('gold'); }
+  else if (r.typ === 'brunnen'){ if (Math.random() < .15) lege('ruhm'); }
+}
+
+const treppenGaenger = [];
+const tuerY = i => bodenY(i) + LAUF;                       // Oberkante des Heldenwegs
+function ankunft(e, t){ e.hx = SCHACHT - 2; e.ziel = 0; e.warte = t + 150 / tempo; if (modus === 'portal') e.portal = t + 600; }
+function zielX(e){ return e.ziel < 4 ? inhaltX(e.ziel) - 6 : BX - 4; }     // Held steht links vom Inhalt, den Boss bekaempft er aus der Tuer
+function tick(t){
+  const dt = Math.min(64, t - (tAlt || t)); tAlt = t;
+  ebenen.forEach((e, i) => {
+    if (e.hx === null){
+      if (t < e.naechst || e.wartetAufZugang) return;
+      if (modus === 'aufzug'){ e.wartetAufZugang = true; aufzug.liste.push(i); }
+      else if (modus === 'treppe'){ e.wartetAufZugang = true; treppenGaenger.push({ i, x: stufeX(0, 0), y: OBEN - 7 }); }
+      else ankunft(e, t);
+      return;
+    }
+    if (t < e.warte){ e.laeuft = false; return; }
+    const z = zielX(e), v = 0.03 * tempo * dt;                // ~30 sp/s
+    if (e.hx < z - 0.5){ e.hx = Math.min(z, e.hx + v); e.laeuft = true; return; }
+    e.laeuft = false;
+    kampf(e, e.ziel, t);
+    e.warte = t + 750 / tempo;
+    e.ziel++;
+    if (e.ziel > 4){ e.hx = null; e.ziel = 0; e.naechst = t + (900 + Math.random()*1200) / tempo + 750 / tempo; }
+  });
+  if (modus === 'aufzug'){
+    const v = 0.08 * tempo * dt;
+    if (aufzug.ziel === null && t > aufzug.halt && aufzug.liste.length){
+      aufzug.ziel = aufzug.last ? tuerY(aufzug.liste[0]) - 2 : 4;
+    }
+    if (aufzug.ziel !== null){
+      const d = aufzug.ziel - aufzug.y;
+      if (Math.abs(d) <= v){
+        aufzug.y = aufzug.ziel; aufzug.ziel = null; aufzug.halt = t + 350 / tempo;
+        if (!aufzug.last){ aufzug.last = true; }
+        else { const i = aufzug.liste.shift(); const e = ebenen[i]; aufzug.last = false; if (e){ e.wartetAufZugang = false; ankunft(e, t); } }
+      } else aufzug.y += Math.sign(d) * v;
+    }
+  }
+  for (let n = treppenGaenger.length - 1; n >= 0; n--){
+    const gg = treppenGaenger[n], zy = tuerY(gg.i);
+    gg.y += 0.04 * tempo * dt; gg.x = treppeX(gg.y);
+    if (gg.y >= zy){ treppenGaenger.splice(n, 1); const e = ebenen[gg.i]; if (e){ e.wartetAufZugang = false; ankunft(e, t); } }
+  }
+  ebenen.forEach((e, i) => {
+    if (t < (e.wanderNaechst || 0)) return;
+    e.wanderNaechst = t + 700 / tempo;
+    let best = null;
+    e.raeume.forEach((r, k) => ['gold','mana'].forEach((art, sl) => {
+      const ts = r.m[art][0]; if (ts !== undefined && t - ts > 5000 / tempo && (!best || ts < best.ts)) best = { r, k, art, sl, ts };
+    }));
+    if (!best) return;
+    best.r.m[best.art].shift();
+    const fy = bodenY(i);
+    wanderer.push({ e, art:best.art, x: raumX(best.k) + R*(1 + 2*best.sl)/6, y: fy + 1, phase:'auf',
+      yAder: ebeneY(i) + BAND, yHort: fy + 1, ziel: hortX(best.art) + 4.5 });
+  });
+  for (let n = wanderer.length - 1; n >= 0; n--){
+    const w = wanderer[n], v = 0.05 * tempo * dt;
+    if (w.phase === 'auf'){ w.y -= v; if (w.y <= w.yAder){ w.y = w.yAder; w.phase = 'quer'; } }
+    else if (w.phase === 'quer'){ w.x += v * 1.4; if (w.x >= w.ziel){ w.x = w.ziel; w.phase = 'ab'; } }
+    else { w.y += v; if (w.y >= w.yHort){ w.e.hort[w.art] += 1; wanderer.splice(n, 1); } }
+  }
+}
+
+cv.addEventListener('pointerdown', ev => {
+  const r = cv.getBoundingClientRect();
+  const x = (ev.clientX - r.left) / s, y = (ev.clientY - r.top) / s;
+  const i = Math.floor((y - OBEN) / EH);
+  if (i === ebenen.length && y - ebeneY(i) > BAND){ graben(ev); return; }
+  const e = ebenen[i]; if (!e) return;
+  const fy = bodenY(i);
+  if (x >= BX){                                             // Hort
+    if (x >= hortX('gold') - 1 && y > fy - 11 && y < fy + 9){
+      let art = x < hortX('mana') ? 'gold' : 'mana';
+      if (!e.hort[art]) art = art === 'gold' ? 'mana' : 'gold';
+      if (e.hort[art]){ const n = e.hort[art]; hud[art] += n*WERT[art]; e.hort[art] = 0; fliege(ev, '+' + n*WERT[art] + (art === 'gold' ? '◇' : '◆'), art); }
+    }
+    return;
+  }
+  for (let k = 0; k < 4; k++){
+    const rx = raumX(k); if (x < rx || x >= rx + R) continue;
+    const rm = e.raeume[k];
+    if (y > fy - 11 && y < fy + 3){                          // Muenz-Kante, grosszuegig
+      const sl = Math.min(2, Math.floor((x - rx) / (R/3))), art = ['gold','mana','ruhm'][sl];
+      const n = rm.m[art].length; if (!n) return;
+      rm.m[art] = []; hud[art] += n*WERT[art]; fliege(ev, '+' + n*WERT[art] + { gold:'◇', mana:'◆', ruhm:'★' }[art], art);
+      return;
+    }
+    if (rm.tot && y >= fy + 3 && y < fy + BODEN){ rm.tot = false; hud.mana = Math.max(0, hud.mana - 5); fliege(ev, '−5◆', 'mana'); }
+    return;
+  }
+});
+function graben(ev){
+  if (ebenen.length >= NAMEN.length) return;
+  hud.gold = Math.max(0, hud.gold - 60); hud.mana = Math.max(0, hud.mana - 20);
+  fliege(ev, '−60◇ −20◆', 'gold');
+  neueEbene(['kobold','falle','schatz','kobold'].map((t, n) => n === 0 ? 'kobold' : (Math.random() < .5 ? t : 'falle')));
+  layout();
+}
+function fliege(ev, text, art){
+  const f = document.createElement('div'); f.className = 'flug'; f.textContent = text;
+  f.style.left = (ev.clientX - 14) + 'px'; f.style.top = (ev.clientY - 14) + 'px';
+  f.style.color = { gold:P.gold, mana:P.mana, ruhm:P.ruhm }[art];
+  document.body.appendChild(f); setTimeout(() => f.remove(), 820);
+  hudZeigen(art);
+}
+function hudZeigen(art){
+  document.querySelector('#hGold b').textContent = hud.gold;
+  document.querySelector('#hMana b').textContent = hud.mana;
+  document.querySelector('#hRuhm b').textContent = hud.ruhm;
+  const id = { gold:'hGold', mana:'hMana', ruhm:'hRuhm' }[art];
+  if (id){ const e = document.getElementById(id); e.classList.add('blitz'); setTimeout(() => e.classList.remove('blitz'), 150); }
+}
+
+function weckruf(){
+  const top = schnitt.scrollTop, bot = top + schnitt.clientHeight, off = buehne.offsetTop;
+  const sum = { oben:{ ko:0, g:0, m:0, i:-1 }, unten:{ ko:0, g:0, m:0, i:-1 } };
+  ebenen.forEach((e, i) => {
+    const mitte = off + (ebeneY(i) + EH/2) * s;
+    const seite = mitte < top + 10 ? 'oben' : mitte > bot - 10 ? 'unten' : null; if (!seite) return;
+    const z = sum[seite];
+    const ko = e.raeume.filter(r => r.tot).length;
+    const g = e.raeume.reduce((a, r) => a + r.m.gold.length, 0) + e.hort.gold;
+    const m = e.raeume.reduce((a, r) => a + r.m.mana.length, 0) + e.hort.mana;
+    z.ko += ko; z.g += g; z.m += m;
+    if (ko || g || m){ if (seite === 'oben') z.i = i; else if (z.i < 0) z.i = i; }
+  });
+  [['wOben','oben','▲'], ['wUnten','unten','▼']].forEach(([id, k, pf]) => {
+    const w = document.getElementById(id), z = sum[k], was = [];
+    if (z.ko) was.push(`<span class="ko">↻ ${z.ko} k.o.</span>`);
+    if (z.g) was.push(`<span class="g">◇${z.g}</span>`);
+    if (z.m) was.push(`<span class="m">◆${z.m}</span>`);
+    w.classList.toggle('an', was.length > 0);
+    w.innerHTML = was.length ? `${pf} ${k} wartet: ${was.join(' · ')}` : '';
+    w.onclick = () => { if (z.i >= 0) schnitt.scrollTo({ top: off + ebeneY(z.i)*s - schnitt.clientHeight/2, behavior:'smooth' }); };
+  });
+}
+
+function zahlenZeigen(){
+  ebenen.forEach((e, i) => { const z = zahlen[i]; if (!z) return;
+    z.gold.textContent = e.hort.gold ? e.hort.gold : ''; z.mana.textContent = e.hort.mana ? e.hort.mana : ''; });
+}
+
+document.getElementById('kModus').onclick = ev => {
+  modus = { treppe:'portal', portal:'aufzug', aufzug:'treppe' }[modus];
+  ev.currentTarget.textContent = { aufzug:'Aufzug', treppe:'Treppe', portal:'Portal' }[modus];
+  aufzug.liste.length = 0; aufzug.ziel = null; aufzug.last = false; treppenGaenger.length = 0;
+  ebenen.forEach(e => { e.wartetAufZugang = false; });
+  baueGrund();
+};
+document.getElementById('kTempo').onclick = ev => { tempo = tempo === 1 ? 2 : 1; ev.currentTarget.textContent = 'Tempo ×' + tempo; };
+document.getElementById('kHandy').onclick = ev => { schnitt.classList.toggle('handy'); ev.currentTarget.classList.toggle('an'); layout(); };
+const seite = document.getElementById('seite');
+const blattZu = () => seite.classList.remove('auf');
+document.getElementById('kHilfe').onclick = () => seite.classList.toggle('auf');
+document.getElementById('kZu').onclick = blattZu;
+document.getElementById('kLos').onclick = blattZu;
+if (window.innerWidth < 900) seite.classList.add('auf');                   // Handy: beim Start erst lesen, dann spielen
+window.addEventListener('resize', layout);
+schnitt.addEventListener('scroll', weckruf, { passive:true });
+
+fetch(UI + 'ui-kit.json').then(r => r.json()).then(kit => {
+  kit.icons.forEach(ic => { const [w, h] = ic.raster.split('x').map(Number); RASTER[ic.name] = [w, h]; });
+}).catch(() => {}).then(() => Promise.all(ICONS.map(n => new Promise(res => {
+  const im = new Image(); im.onload = () => { IMG[n] = im; if (!RASTER[n]) RASTER[n] = [im.width / 2 | 0 || 9, im.height / 2 | 0 || 9]; res(); };
+  im.onerror = res; im.src = UI + n + '.svg';
+})))).then(() => {
+  const leg = document.getElementById('legende');
+  [['kobold','Monster in der Kammer'], ['falle','Falle'], ['schatz','Schatz'], ['boss','Boss · Ende der Ebene'],
+   ['muenze-gold','Gold auf der Kammer-Kante'], ['muenze-gold-2','zwei liegen'], ['muenze-gold-haufen','drei und mehr · auch im Hort'],
+   ['muenze-mana','Mana'], ['reaktivieren','↻ statt Monster: k.o., antippen'], ['schloss','gesperrte Tiefe']].forEach(([n, txt]) => {
+    if (!IMG[n]) return;
+    const d = document.createElement('div'); d.className = 'leg';
+    const [w, h] = RASTER[n]; const im = document.createElement('img'); im.src = UI + n + '.svg'; im.width = w*3; im.height = h*3; im.alt = '';
+    d.append(im, document.createTextNode(txt)); leg.appendChild(d);
+  });
+  layout();
+  const lauf = t => { tick(t); zeichne(t); zahlenZeigen(); requestAnimationFrame(lauf); };
+  requestAnimationFrame(lauf);
+  setInterval(() => { weckruf(); hudZeigen(); }, 600);
+});
+</script>
+</body>
+</html>
