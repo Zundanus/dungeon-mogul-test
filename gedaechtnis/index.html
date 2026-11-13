@@ -1,0 +1,1499 @@
+<!doctype html>
+
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Dungeon Mogul — Der Dungeon erinnert sich</title>
+<link rel="icon" type="image/svg+xml" href="assets/ui/favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="assets/ui/favicon-32.png" />
+<style>
+  :root{
+    --kontur:#171310; --nacht:#1D1813; --raum:#2B2721; --wand:#3A342A; --stein:#575040; --stein-hell:#746B57;
+    --panel:#262119; --text:#F5EFE2; --text-leise:#B8AD98; --amber:#FFB347; --amber-hell:#FFD98A; --amber-tief:#C87E2E;
+    --gold:#F2C14E; --mana:#56B8C8; --ruhm:#E8834A; --prestige:#E05A4E;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%; overflow-x:hidden; max-width:100vw;}
+  body{background:var(--nacht); color:var(--text); font-family:"Courier New",monospace; font-size:13px;
+    overflow:hidden; -webkit-tap-highlight-color:transparent;}
+  .app{height:100%; display:flex; flex-direction:column; max-width:100vw; overflow:hidden;}
+  .mitte, .hud{min-width:0;}
+  .schnitt{overflow-x:hidden;}
+  .hud{flex:0 0 auto; background:var(--panel); border-bottom:3px solid var(--kontur);
+    padding:calc(6px + env(safe-area-inset-top,0px)) 10px 6px; display:flex; gap:12px; align-items:center; z-index:30;}
+  .res{display:inline-flex; gap:3px; align-items:center; transition:transform .15s;}
+  .res.blitz{transform:scale(1.35);}
+  .r-gold{color:var(--gold);} .r-mana{color:var(--mana);} .r-ruhm{color:var(--ruhm);}
+  .hud .rechts{margin-left:auto; display:flex; gap:6px;}
+  .knopf{background:var(--wand); border:3px solid var(--stein-hell); color:var(--amber-hell); font-family:inherit;
+    font-size:11px; padding:4px 8px; cursor:pointer; min-height:34px;}
+  .knopf.an{border-color:var(--amber); color:var(--amber);}
+  #kHilfe{display:none; min-width:34px; font-weight:bold;}
+  .hud{overflow:hidden;}
+  @media (max-width:600px){
+    #kHandy, #kModus{display:none;}
+    .hud{gap:8px; padding-left:8px; padding-right:8px;}
+    .knopf{padding:3px 6px; font-size:10px;}
+  }
+  @media (max-width:420px){ #kTempo{display:none;} }   /* Bild-Probe: zwei Knoepfe mehr in der Leiste, Tempo nur im Browser */
+
+  .mitte{flex:1 1 auto; min-height:0; display:flex; justify-content:center; gap:16px;}
+  .schnitt{flex:0 1 auto; width:100%; max-width:820px; min-height:0; overflow-y:auto; position:relative;
+    overscroll-behavior:contain;}
+  .schnitt.handy{max-width:390px; border-left:2px solid var(--wand); border-right:2px solid var(--wand);}
+  .buehne{position:relative; margin:0 auto;}
+  canvas{display:block; image-rendering:pixelated; image-rendering:crisp-edges; touch-action:manipulation;}
+  #cvO{position:absolute; left:0; top:0; pointer-events:none; z-index:3;}
+  .label{position:absolute; z-index:2; font-size:10px; line-height:11px; color:var(--amber-hell); letter-spacing:1px; pointer-events:none;
+    background:rgba(23,19,16,.9); padding:0 4px; white-space:nowrap; text-shadow:1px 1px 0 var(--kontur);}
+  .label .tiefe{color:var(--text-leise); font-size:9px; margin-left:6px;}
+  .label.fels{color:var(--text-leise);}
+  .zahl{position:absolute; z-index:4; font-size:10px; line-height:11px; font-weight:bold; pointer-events:none; text-shadow:1px 1px 0 var(--kontur);
+    transform:translateX(-50%);}
+  .hinweis{position:absolute; z-index:2; font-size:11px; color:var(--text-leise); pointer-events:none; text-align:center;
+    transform:translate(-50%,-50%); white-space:nowrap; background:rgba(23,19,16,.85); padding:1px 4px;}
+  .hinweis b{color:var(--amber); font-weight:normal;} .hinweis i{color:var(--ruhm); font-style:normal;}
+  .weckruf{position:sticky; left:0; right:0; z-index:25; display:none; background:var(--panel);
+    border:2px solid var(--amber-tief); padding:7px 10px; font-size:12px; cursor:pointer; text-align:center; margin:0 8px;}
+  .weckruf.an{display:block;}
+  .weckruf.oben{top:6px;} .weckruf.unten{bottom:8px;}
+  .weckruf .ko{color:var(--prestige);} .weckruf .g{color:var(--gold);} .weckruf .m{color:var(--mana);}
+
+  .seite{display:none; flex:0 0 280px; overflow-y:auto; background:var(--panel); border-left:3px solid var(--kontur);
+    padding:14px; line-height:1.5; font-size:12px;}
+  .seite h2{font-size:13px; color:var(--amber-hell); letter-spacing:1px; font-weight:normal; margin:12px 0 6px;}
+  .seite h2:first-of-type{margin-top:0;}
+  .seite p{margin:0 0 6px;}
+  .seite .leg{display:flex; align-items:center; gap:8px; margin:3px 0;}
+  .seite .leg img{image-rendering:pixelated; flex:0 0 auto;}
+  .seite ol{padding-left:18px;} .seite li{margin:4px 0;}
+  .seite .klein{color:var(--text-leise); font-size:11px;}
+  .seite .fragen li{color:var(--amber-hell);}
+  .seite .zu, .seite .los{display:none;}
+  @media (min-width:900px){ .seite{display:block;} .seite .nurhandy{display:none;} }
+  @media (max-width:899px){
+    #kHilfe{display:inline-block;}
+    .seite .nurbrowser{display:none;}
+    .seite.auf{display:block; position:fixed; left:0; right:0; top:0; bottom:0; z-index:500; border-left:none;
+      padding:calc(16px + env(safe-area-inset-top,0px)) 16px calc(20px + env(safe-area-inset-bottom,0px)); font-size:13px;}
+    .seite.auf h2:first-of-type{padding-right:48px;}
+    .seite .zu{display:block; position:absolute; right:10px; top:calc(8px + env(safe-area-inset-top,0px)); min-width:40px;}
+    .seite .los{display:block; width:100%; margin-top:14px; font-size:13px; min-height:44px;}
+  }
+
+  .flug{position:fixed; z-index:400; font-size:13px; font-weight:bold; pointer-events:none;
+    animation:flug .8s ease-out forwards; text-shadow:1px 1px 0 var(--kontur);}
+  @keyframes flug{0%{transform:translateY(0); opacity:1;} 100%{transform:translateY(-40px); opacity:0;}}
+  .flug.sp{position:absolute; z-index:5; font-size:12px;}
+  .flug.lang{animation-duration:1.4s;}
+
+  .gname{position:absolute; z-index:4; font-size:9px; line-height:10px; letter-spacing:1px; pointer-events:none; white-space:nowrap;
+    color:var(--amber-hell); background:rgba(23,19,16,.85); padding:0 2px; text-shadow:1px 1px 0 var(--kontur);}
+  .gname.stein{color:var(--text-leise);}
+  .gname.rechts{transform:translateX(-100%);}
+  .gname.mitte{transform:translateX(-50%);}
+  .zettel{position:absolute; z-index:20; max-width:190px; background:var(--panel); border:1px solid var(--amber-tief);
+    color:var(--text); font-size:11px; line-height:1.35; padding:5px 7px; pointer-events:none; transform:translate(-50%,-100%);
+    box-shadow:0 2px 0 var(--kontur);}
+  .zettel b{color:var(--amber-hell); font-weight:normal; letter-spacing:1px;}
+  .zettel .leise{color:var(--text-leise);}
+  .platzhalter{position:absolute; z-index:2; border:1px dashed var(--text-leise); background:rgba(23,19,16,.7);
+    color:var(--text-leise); font-size:8px; line-height:9px; text-align:center; display:flex; align-items:center; justify-content:center;
+    padding:1px; pointer-events:none;}
+  .einblender{position:fixed; inset:0; z-index:450; display:none; align-items:center; justify-content:center;
+    background:rgba(23,19,16,.72); cursor:pointer;}
+  .einblender.an{display:flex;}
+  .einblender .karte{background:var(--panel); border:3px solid var(--amber-tief); padding:14px 16px; max-width:300px; text-align:center;}
+  .einblender .bild{width:128px; height:128px; margin:0 auto 10px; border:1px dashed var(--amber); color:var(--text-leise);
+    font-size:10px; line-height:1.3; display:flex; align-items:center; justify-content:center; padding:6px;
+    background:radial-gradient(circle, rgba(255,179,71,.28) 0%, rgba(200,126,46,.12) 55%, rgba(23,19,16,0) 75%);}
+  .einblender .band{font-size:16px; letter-spacing:3px; color:var(--amber-hell); border-top:2px solid var(--amber-tief);
+    border-bottom:2px solid var(--amber-tief); padding:4px 0; margin:6px 0;}
+  .einblender .satz{font-size:12px; color:var(--text); line-height:1.4;}
+  .einblender .leise{font-size:11px; color:var(--text-leise); margin-top:6px;}
+  .einblender .karte{animation:einblenden .35s steps(4) 1;}
+  @keyframes einblenden{0%{transform:scale(.8); opacity:0;} 100%{transform:scale(1); opacity:1;}}
+  @media (prefers-reduced-motion:reduce){ .einblender .karte{animation:none;} }
+
+  .tafelM{position:absolute; z-index:4; pointer-events:none; transform:translateX(-100%); text-align:right;
+    font-size:9px; line-height:11px; letter-spacing:1px; white-space:nowrap; color:var(--text-leise);
+    background:var(--panel); padding:2px 5px; margin-top:3px;
+    box-shadow:0 -3px 0 var(--text-leise), 0 3px 0 var(--text-leise), 0 5px 0 var(--kontur);}   /* D3: Liste als Schriftrolle */
+  .tafelM .da{color:var(--amber-hell);}
+  .tafelM .kopf{color:var(--text-leise); letter-spacing:2px;}
+  .tafelM b{color:var(--amber-hell); font-weight:normal;}
+  .itag.kand{color:var(--text-leise); border-color:var(--stein-hell);}
+  .namAuf{position:absolute; z-index:7; font-size:12px; letter-spacing:2px; color:var(--amber-hell); pointer-events:none; white-space:nowrap;
+    text-shadow:1px 1px 0 var(--kontur); transform:translateX(-100%); animation:namAuf 2.2s ease-out forwards;
+    background:var(--panel); border:1px solid var(--amber-tief); padding:1px 4px;}
+  @keyframes namAuf{0%{opacity:0; margin-top:6px;} 15%{opacity:1;} 75%{opacity:1;} 100%{opacity:0; margin-top:-22px;}}
+  .namGross{position:absolute; z-index:9; transform:translate(-50%,-50%); pointer-events:none; text-align:center; white-space:nowrap;
+    background:var(--panel); border:3px solid var(--amber); padding:4px 12px 5px; box-shadow:0 0 0 2px var(--kontur), 0 0 14px rgba(255,179,71,.55);
+    animation:namGross 3.2s steps(8) forwards;}
+  .namGross .klein{display:block; font-size:10px; letter-spacing:1px; color:var(--text-leise);}
+  .namGross .name{display:block; font-size:18px; letter-spacing:4px; color:var(--amber-hell); text-shadow:1px 1px 0 var(--kontur);}
+  @keyframes namGross{0%{opacity:0; transform:translate(-50%,-50%) scale(.6);} 10%{opacity:1; transform:translate(-50%,-50%) scale(1.08);}
+    16%{transform:translate(-50%,-50%) scale(1);} 85%{opacity:1;} 100%{opacity:0;}}
+  @media (prefers-reduced-motion:reduce){ .namGross{animation:none;} }
+  .itag{position:absolute; z-index:6; font-size:9px; line-height:10px; letter-spacing:1px; pointer-events:none; white-space:nowrap;
+    color:var(--amber-hell); background:rgba(23,19,16,.88); padding:0 2px; transform:translate(-50%,-100%);
+    border:1px solid var(--amber-tief);}
+  .knopf.rolle{position:relative; min-width:34px; padding:2px 6px; display:inline-flex; align-items:center; justify-content:center;}
+  .knopf.rolle svg{width:18px; height:18px; image-rendering:pixelated; display:block;}
+  .rolle .badge{position:absolute; top:-5px; right:-5px; min-width:15px; height:15px; padding:0 3px; border-radius:8px;
+    background:var(--amber); color:var(--kontur); font-size:10px; line-height:15px; font-weight:bold; text-align:center; display:none;}
+  .rolle .badge.an{display:block;}
+  .knopf.rolle.neu{animation:rolleBlink .6s steps(1) 3;}
+  @keyframes rolleBlink{0%{background:var(--amber-tief); border-color:var(--amber-hell);} 50%{background:var(--wand); border-color:var(--stein-hell);}}
+  .ticker{position:fixed; right:8px; z-index:420; display:none; max-width:min(330px, calc(100vw - 16px)); cursor:pointer;
+    background:var(--panel); color:var(--text); font-size:11px; line-height:1.35; padding:6px 9px;
+    border-left:2px solid var(--amber-tief); border-right:2px solid var(--amber-tief);
+    box-shadow:0 -3px 0 var(--text-leise), 0 3px 0 var(--text-leise), 0 5px 0 var(--kontur);
+    transform-origin:top right;}
+  .ticker.an{display:block; animation:entrollen .32s steps(4) 1;}
+  .ticker .wo{color:var(--text-leise);}
+  .ticker b{color:var(--amber-hell); font-weight:normal; letter-spacing:1px;}
+  @keyframes entrollen{0%{transform:scaleY(.1);} 100%{transform:scaleY(1);}}
+  .chronik{position:fixed; top:0; right:0; width:min(330px, 92vw); max-height:82vh; overflow-y:auto; z-index:470; background:var(--panel);
+    border-left:3px solid var(--amber-tief); border-bottom:3px solid var(--amber-tief); transform:translateX(104%); transition:transform .2s steps(4);
+    padding:calc(10px + env(safe-area-inset-top,0px)) 12px 12px;}
+  .chronik.auf{transform:none;}
+  .chronik h2{font-size:13px; color:var(--amber-hell); letter-spacing:1px; font-weight:normal; margin:4px 48px 6px 0;}
+  .chronik h3{font-size:11px; color:var(--text-leise); letter-spacing:2px; font-weight:normal; margin:10px 0 3px; text-transform:uppercase;}
+  .chronik .zu{position:absolute; right:10px; top:calc(8px + env(safe-area-inset-top,0px)); min-width:40px;}
+  #sReiter{display:none;}
+  #sReiter .knopf{min-height:32px; font-size:11px; padding:2px 8px;}
+  .chronik table{width:100%; border-collapse:collapse; font-size:11px; line-height:1.35;}
+  .chronik th{color:var(--text-leise); font-weight:normal; text-align:left; padding:2px 4px; border-bottom:1px solid var(--wand);}
+  .chronik td{color:var(--text); padding:3px 4px; border-bottom:1px solid var(--wand);}
+  .chronik b{color:var(--amber-hell); font-weight:normal; letter-spacing:1px;}
+  .chronik .an{color:var(--amber);}
+  .chronik ul{padding-left:16px; font-size:11px; line-height:1.4;} .chronik li{margin:3px 0;}
+  .chronik .leer{color:var(--text-leise); font-size:11px;}
+  .lband{position:absolute; z-index:4; overflow:hidden; white-space:nowrap; font-size:10px; color:var(--text); cursor:pointer;
+    display:flex; align-items:center; text-shadow:1px 1px 0 var(--kontur);}
+  .lband .fenster{position:absolute; top:0; bottom:0; right:0; overflow:hidden; display:flex; align-items:center;}
+  .lband span{display:inline-block; padding:0 2px; transform:translateX(9999px);}
+  .lband b{color:var(--amber-hell); font-weight:normal; letter-spacing:1px;}
+  .lband.name span{color:var(--amber-hell);}
+  .monLauf{position:absolute; z-index:4; overflow:hidden; white-space:nowrap; font-size:9px; line-height:11px; pointer-events:none;
+    background:rgba(23,19,16,.88); color:var(--text); border-right:2px solid var(--text-leise); padding:1px 0;}
+  .monLauf span{display:inline-block; padding-left:100%; animation:monLauf 16s linear infinite;}
+  .monLauf b{color:var(--amber-hell); font-weight:normal;}
+  @keyframes monLauf{from{transform:translateX(0);} to{transform:translateX(-100%);}}
+  .seite .schalter select{font-family:inherit; font-size:11px; background:var(--wand); color:var(--amber-hell); border:2px solid var(--stein-hell); min-height:30px; padding:2px 4px;}
+  .seite .schalter label{display:flex; gap:8px; align-items:center; margin:6px 0; cursor:pointer; min-height:28px;}
+  .seite .schalter input{width:18px; height:18px; accent-color:var(--amber);}
+  @media (prefers-reduced-motion:reduce){ .knopf.rolle.neu, .ticker.an, .monLauf span{animation:none;} .monLauf span{padding-left:2px;} .chronik{transition:none;} }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hud">
+    <span class="res r-gold" id="hGold">◇ <b>75</b></span>
+    <span class="res r-mana" id="hMana">◆ <b>30</b></span>
+    <span class="res r-ruhm" id="hRuhm">★ <b>9</b></span>
+    <div class="rechts">
+      <button class="knopf an" id="kVar" title="Gedächtnis an · ältere Fassung (Bernstein) · aus">Gedächtnis</button>
+      <button class="knopf" id="kMoment" title="Zwei Namens-Momente gleichzeitig zeigen (E2 und E3)">Name</button>
+      <button class="knopf" id="kModus" title="Wie kommen die Helden hinunter? Treppe, Portal, Aufzug">Treppe</button>
+      <button class="knopf" id="kTempo">Tempo ×1</button>
+      <button class="knopf" id="kHandy" title="Handy-Ansicht im Browser">📱</button>
+      <button class="knopf rolle" id="kRolle" aria-label="Statistik des Dungeons öffnen" title="Statistik: Items, Stammgäste, besondere Helden">
+        <svg viewBox="0 0 9 9" shape-rendering="crispEdges" aria-hidden="true">
+          <rect x="0" y="0" width="9" height="2" fill="#B8AD98"/><rect x="1" y="0" width="7" height="1" fill="#F5EFE2"/>
+          <rect x="1" y="2" width="7" height="5" fill="#F5EFE2"/>
+          <rect x="2" y="3" width="5" height="1" fill="#575040"/><rect x="2" y="5" width="3" height="1" fill="#575040"/>
+          <rect x="6" y="5" width="1" height="1" fill="#C87E2E"/>
+          <rect x="0" y="7" width="9" height="2" fill="#B8AD98"/><rect x="1" y="7" width="7" height="1" fill="#F5EFE2"/>
+        </svg><span class="badge" id="rBadge"></span></button>
+      <button class="knopf" id="kHilfe" aria-label="Was du siehst und Fragen">?</button>
+    </div>
+  </div>
+  <div class="mitte">
+    <div class="schnitt" id="schnitt">
+      <div class="weckruf oben" id="wOben"></div>
+      <div class="buehne" id="buehne"><canvas id="cv"></canvas><canvas id="cvO" aria-hidden="true"></canvas></div>
+      <div class="weckruf unten" id="wUnten"></div>
+    </div>
+    <aside class="seite" id="seite" aria-label="Was du siehst und Fragen">
+      <button class="knopf zu" id="kZu" aria-label="Schließen">✕</button>
+      <h2>DUNGEON MOGUL · DER DUNGEON ERINNERT SICH</h2>
+      <div class="klein">Eine Bild-Probe, kein fertiges Spiel. Der Kampf ist Zufall, nichts wird gespeichert. Es geht nur um das Bild.</div>
+      <h2>WAS DU SIEHST</h2>
+      <p>Ein Schnitt durch deinen Dungeon, jede Zeile ist eine Ebene. Helden steigen links hinab, laufen die Kammern ab und gehen durch die Tür der Boss-Halle hinaus.
+        <b style="color:var(--amber-hell);font-weight:normal">Neu:</b> Wo Helden fallen, stapeln sich <b style="color:var(--text);font-weight:normal">Schädel</b> zu einer Pyramide. Je höher, desto gefährlicher.
+        Der Boss sitzt auf einem <b style="color:var(--prestige);font-weight:normal">Thron</b>. Unter jeder Ebene läuft ein eigenes <b style="color:var(--text);font-weight:normal">Laufband</b> mit dem, was gerade passiert ist.
+        Helden, die einen Gegenstand tragen, siehst du schon oben in der Schlange: Er schwebt über ihnen. Noch namenlose Gegenstände zählen mit („Dolch 2/3“).
+        Beim dritten Mal lebend hinaus bekommt der Gegenstand an der Tür seinen Namen und fliegt in die Bernstein-Ader. Münzen hängen jetzt an der Ader.
+        Der kleine <b style="color:var(--text);font-weight:normal">Knopf mit der Schriftrolle</b> am Laufband zeigt die Statistik der Ebene, die Schriftrolle oben den ganzen Dungeon.</p>
+      <p class="klein">„Name“ zeigt zwei Namens-Momente gleichzeitig (E2 und E3). Schädel antippen: Der Statistik-Knopf der Ebene blinkt.</p>
+      <h2>FRAGEN AN DICH</h2>
+      <ol class="fragen">
+        <li>Was bedeuten die Schädel, und was die Kerben im Thron?</li>
+        <li>Merkst du, wann ein Gegenstand einen Namen bekommt?</li>
+        <li>Findest du die Statistik der Ebene und die des ganzen Dungeons?</li>
+        <li>Wirkt das Bild voll, ruhig oder genau richtig?</li>
+      </ol>
+      <h2>SCHALTER ZUM AUSPROBIEREN</h2>
+      <div class="schalter">
+        <label>Boss-Raum <select id="sBoss"><option value="thron">Thron</option><option value="raum">Boden und Wand</option><option value="beides">beides</option></select></label>
+        <label>Laufband <select id="sLauf"><option value="unter">unter der Ebene</option><option value="band">im Fels-Band</option></select></label>
+        <label><input type="checkbox" id="sRuf"> Ader zeigt den Ruf der Ebene</label>
+        <label><input type="checkbox" id="sTraeger"> Item-Träger hervorheben</label>
+        <label><input type="checkbox" id="sDiamant"> Diamanten in der Ader</label>
+        <label><input type="checkbox" id="sNamen"> Heldennamen zeigen (Statistik und Laufband)</label>
+      </div>
+      <h2>SO LIEST MAN DIE KARTE</h2>
+      <div id="legende"></div>
+      <h2>BEDIENEN</h2>
+      <ol>
+        <li>Münze auf der Kammer-Kante antippen: sammelt diese Sorte der Kammer.</li>
+        <li>Hort in der Boss-Halle antippen: sammelt alles einer Sorte.</li>
+        <li>↻ antippen: belebt ein besiegtes Monster wieder (kostet 5 ◆).</li>
+        <li>„Tiefer graben“ unten: neue Ebene, die Treppe wächst mit.</li>
+        <li>Schriftrolle oben rechts: Statistik des Dungeons. Schaukasten oder Laufband einer Ebene: Statistik dieser Ebene.</li>
+        <li>„Tempo“ macht alles doppelt so schnell, dann fallen schneller Helden.</li>
+      </ol>
+      <div class="klein nurbrowser" style="margin-top:12px">📱 oben zeigt die Handy-Breite im Browser.</div>
+      <div class="klein nurhandy" style="margin-top:12px">Dieses Blatt öffnest du jederzeit wieder mit „?“ oben rechts.</div>
+      <button class="knopf los" id="kLos">Los geht’s</button>
+    </aside>
+  </div>
+</div>
+<div class="einblender" id="einblender" role="dialog" aria-live="polite" aria-label="Ein Gegenstand bekommt einen Namen">
+  <div class="karte">
+    <div class="bild">[Bild folgt: Gegenstand friert in Bernstein ein]</div>
+    <div class="satz" id="ebSatz"></div>
+    <div class="band" id="ebName"></div>
+    <div class="leise">Antippen zum Weiterspielen</div>
+  </div>
+</div>
+<aside class="chronik" id="chronik" aria-label="Statistik des Dungeons">
+  <button class="knopf zu" id="cZu" aria-label="Statistik schließen">✕</button>
+  <h2 id="sTitel">STATISTIK</h2>
+  <div id="sReiter"></div>
+  <div id="sInhalt"></div>
+</aside>
+
+<script>
+'use strict';
+const P = { kontur:'#171310', nacht:'#1D1813', raum:'#2B2721', wand:'#3A342A', stein:'#575040', steinH:'#746B57',
+  panel:'#262119', text:'#F5EFE2', leise:'#B8AD98', amber:'#FFB347', amberH:'#FFD98A', amberT:'#C87E2E',
+  gold:'#F2C14E', mana:'#56B8C8', ruhm:'#E8834A', prestige:'#E05A4E', prestH:'#FF9C8F' };
+
+const UI = 'assets/ui/';
+const ICONS = ['kobold','kobold-leer','waechter','waechter-leer','bestie','bestie-leer','falle','falle-leer','schatz','schatz-leer',
+  'brunnen','brunnen-leer','boss','boss-marke','kampf','reaktivieren','schloss','schaedel',
+  'muenze-gold','muenze-gold-2','muenze-gold-haufen','muenze-mana','muenze-mana-2','muenze-mana-haufen',
+  'muenze-ruhm','muenze-ruhm-2','muenze-ruhm-haufen'];
+const IMG = {}, RASTER = {};
+
+const ZELLE = 8, SCHACHT = 12, GANG = 4, OBEN = 24, BAND = 8, WANDH = 8, BODEN = 16, BOSS_MIN = 32, TIEF = 24;
+let EH = BAND + WANDH + BODEN;            // 32 sp, in D2 plus Laufband-Leiste (layout)
+const LAUF = 8;                           // Heldenweg ab Boden + 8 (Zeilen +8 .. +14), Bodenkante +15
+const KAMMER_BREIT = 32, KAMMER_SCHMAL = 24;
+let W = 193, R = 32, BX = 0, BW = 37, s = 2, H = 0;
+
+const NAMEN = ['Moosgang','Tropfhalle','Glutkeller','Wurzelgrund','Harzgrotte','Echokammer','Ascheschlund','Bernsteinader'];
+const START = [['kobold','falle','waechter','schatz'], ['kobold','kobold','brunnen','waechter'], ['waechter','schatz','bestie','falle']];
+const MONSTER = new Set(['kobold','waechter','bestie']);
+const WERT = { gold:3, mana:2, ruhm:1 };
+const hud = { gold:75, mana:30, ruhm:9 };
+const ebenen = [];
+const wanderer = [];
+const steiger = [], oben = [], anfragen = [];          // aufsteigende Muenzen (T-3), Helden oben + Anfragen der Ebenen (T-5)
+let tempo = 1;
+let modus = 'treppe';                 // 'treppe' (Standard) | 'portal' | 'aufzug' (nur Vergleich)
+const aufzug = { y: 4, ziel: null, liste: [], halt: 0, last: false };
+let tAlt = 0;
+
+function neueEbene(typen){
+  const i = ebenen.length;
+  ebenen.push({ name:NAMEN[i % NAMEN.length], tiefe:(i+1)*20,
+    raeume: typen.map(t => ({ typ:t, tot:false, hp:1, ko:0, m:{ gold:[], mana:[], ruhm:[] } })),
+    hort:{ gold:0, mana:0, ruhm:0 }, hx:null, ziel:0, warte:0, laeuft:false, naechst:performance.now() + 500 + i*1800, blend:null, portal:0,
+    hp:1, bossHp:1, kampf:null, gefallen:null, funkel:null });
+}
+START.forEach(neueEbene);
+
+const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+const cvO = document.getElementById('cvO'), ctxO = cvO.getContext('2d');      // obere Ebene: wandernde Muenzen ueber den Schildern
+const bg = document.createElement('canvas'), bgx = bg.getContext('2d');      // statischer Grund (Tiles), nur bei Layout-Wechsel neu
+const buehne = document.getElementById('buehne'), schnitt = document.getElementById('schnitt');
+let g = ctx;                                                                  // aktuelles Zeichenziel
+function hash(x, y){ let h = (x*374761393 + y*668265263) ^ 0x5bd1e995; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967295; }
+function px(x, y, w, h, f){ g.fillStyle = f; g.fillRect(x, y, w, h); }
+const MESS = { an:false, rects:null, frames:0, treffer:0, beispiel:null, maxPuls:0, heldGesehen:0, muenzGesehen:0, balkenGesehen:0, ausgang:0, gefallen:0, ko:0, puls:[] };
+function icon(name, x, y){
+  const im = IMG[name]; if (!im) return; const [w, h] = RASTER[name]; x = Math.round(x); y = Math.round(y);
+  g.drawImage(im, x, y, w, h);
+  if (MESS.an && MESS.rects && name.startsWith('muenze')) MESS.rects.muenze.push({ x, y, w, h, name });
+}
+const raumX = k => SCHACHT + k*(R + GANG);
+const ebeneY = i => OBEN + i*EH;
+const bodenY = i => ebeneY(i) + BAND + WANDH;
+const inhaltX = k => { const kx = raumX(k); return Math.round(Math.max(kx + R/2 - 4.5, kx + 8)); };   // links vom Inhalt Platz fuer den Helden
+const hortSchritt = () => Math.min(8, Math.floor((BW - 11 - 9) / 2));
+const hortX = art => variante === 'd'                                         // D: drei Haufen (Gold, Mana, Ruhm) rechts vom Thron, auf der Kante
+  ? BX + 11 + ({ gold:0, mana:1, ruhm:2 })[art] * hortSchritt()
+  : BX + BW - (art === 'gold' ? 20 : 11);                                    // linke Kante des Hort-Haufens (9 sp), auf der Kante
+const aderEnde = () => hortX(variante === 'd' ? 'ruhm' : 'mana') + 5;
+const BOSS_X = () => BX + 3;
+
+function layout(){
+  EH = BAND + WANDH + BODEN + (variante === 'd' ? LB() : 0);
+  const breit = schnitt.clientWidth;
+  s = breit >= 740 ? 4 : breit >= 560 ? 3 : 2;
+  W = Math.max(SCHACHT + 4*(KAMMER_SCHMAL + GANG) + BOSS_MIN, Math.floor((breit - 4) / s));
+  R = W - SCHACHT - 4*GANG - BOSS_MIN >= 4*KAMMER_BREIT ? KAMMER_BREIT : KAMMER_SCHMAL;
+  BX = SCHACHT + 4*(R + GANG);
+  BW = W - BX;
+  H = OBEN + ebenen.length*EH + EH + TIEF + 6;
+  [cv, cvO, bg].forEach(c => { c.width = W; c.height = H; });
+  [cv, cvO].forEach(c => { c.style.width = (W*s) + 'px'; c.style.height = (H*s) + 'px'; });
+  buehne.style.width = (W*s) + 'px'; buehne.style.height = (H*s) + 'px';
+  ctx.imageSmoothingEnabled = ctxO.imageSmoothingEnabled = bgx.imageSmoothingEnabled = false;
+  baueGrund();
+  overlays();
+  if (variante === 'd') lbLayout(); else buehne.querySelectorAll('.lband').forEach(e => e.remove());
+}
+
+let zahlen = [];
+function overlays(){
+  buehne.querySelectorAll('.label,.zahl,.hinweis,.gname,.platzhalter,.tafelM,.monLauf').forEach(e => e.remove());
+  zahlen = [];
+  const L = (cls, html, x, y) => { const e = document.createElement('div'); e.className = cls; e.innerHTML = html;
+    e.style.left = (x*s) + 'px'; e.style.top = (y*s) + 'px'; buehne.appendChild(e); return e; };
+  ebenen.forEach((e, i) => {
+    L('label', `E${i+1} ${e.name.toUpperCase()}<span class="tiefe">−${e.tiefe} m</span>`, SCHACHT + 2, ebeneY(i));
+    const fy = bodenY(i);
+    zahlen.push({ gold: L('zahl r-gold', '', hortX('gold') + 4.5, fy + 1), mana: L('zahl r-mana', '', hortX('mana') + 4.5, fy + 1),
+      ruhm: variante === 'd' ? L('zahl r-ruhm', '', hortX('ruhm') + 4.5, fy + 1) : null });
+  });
+  const by = ebeneY(ebenen.length);
+  L('label fels', `E${ebenen.length+1} NOCH FELS`, SCHACHT + 2, by);
+  L('hinweis', '⛏ Tiefer graben · <b>60◇ 20◆</b>', SCHACHT + (W - SCHACHT)/2, by + BAND + (EH - BAND)/2);
+  L('hinweis', 'Härtere Helden ab <i>★ Ruhm 8</i>', SCHACHT + (W - SCHACHT)/2 + 4, by + EH + TIEF/2);
+  buehne.querySelectorAll('.gname,.platzhalter,.tafelM,.monLauf').forEach(e => e.remove());
+  erinnerungOverlays(L);
+}
+
+function fels(x0, y0, w, h){                       // dunkler Fels fuer Zwischenraeume (Gang-Decke, Portal-Schacht)
+  for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++){
+    const r = hash(x, y);
+    px(x, y, 1, 1, r > 0.985 ? P.stein : r > 0.92 ? P.wand : r > 0.8 ? P.nacht : P.kontur);
+  }
+}
+function tileBand(x0, y0, cx, cy){                 // Fels-Band nach der Fels-Vorlage: dunkel, ein Brocken, selten eine Seitenader
+  for (let y = 0; y < ZELLE; y++) for (let x = 0; x < ZELLE; x++) px(x0 + x, y0 + y, 1, 1, hash(x0 + x, y0 + y) > 0.78 ? P.nacht : P.kontur);
+  const v = hash(cx*3 + 1, cy*5 + 2);
+  if (v < 0.6){
+    const bx = x0 + 1 + ((hash(cx, cy + 9)*3) | 0), by = y0 + ((hash(cy, cx + 4)*2) | 0);
+    px(bx, by, 3, 2, P.wand); px(bx, by, 1, 1, P.stein);                    // Brocken, Licht oben links
+  }
+  if (v > 0.88){                                                          // Seitenader laeuft schraeg in die Hauptader
+    const ax = x0 + 2 + ((hash(cx + 7, cy)*3) | 0);
+    px(ax, y0 + 3, 1, 1, P.amberT); px(ax + 1, y0 + 4, 1, 1, P.amberT); px(ax + 2, y0 + 5, 1, 1, P.amberT);
+  }
+}
+function tileWand(x0, y0, cx, cy){                 // Krone · Ziegel 3 · Fuge · Ziegel 2 · Schatten auf den Boden
+  for (let y = 0; y < ZELLE; y++) for (let x = 0; x < ZELLE; x++){
+    let f;
+    if (y === 0) f = P.stein;
+    else if (y === 4 || y === 7) f = P.kontur;
+    else f = ((y < 4 ? x : x + 4) % ZELLE === 0) ? P.kontur : P.wand;
+    px(x0 + x, y0 + y, 1, 1, f);
+  }
+  const v = hash(cx*7 + 3, cy*11 + 5);
+  if (v < 0.25) px(x0 + 1, y0 + 1, 2, 1, P.stein);                        // Licht-Kante oben links
+  else if (v < 0.4){ px(x0 + 5, y0 + 1, 1, 1, P.kontur); px(x0 + 6, y0 + 2, 1, 1, P.kontur); }   // Riss
+  else if (v < 0.5) px(x0 + 6, y0 + 5, 1, 1, P.stein);                    // abgeschlagene Ecke
+}
+function tileBoden(x0, y0, cx, cy){                // Steinplatte 8 x 8, Fuge oben und links, ruhig
+  for (let y = 0; y < ZELLE; y++) for (let x = 0; x < ZELLE; x++)
+    px(x0 + x, y0 + y, 1, 1, (x === 0 || y === 0) ? P.wand : P.raum);
+  const v = hash(cx*13 + 7, cy*3 + 1);
+  if (v < 0.18) px(x0 + 3 + ((hash(cx, cy)*3) | 0), y0 + 4, 1, 1, P.wand);                // Kiesel
+  else if (v < 0.28){ px(x0 + 5, y0 + 2, 1, 1, P.wand); px(x0 + 6, y0 + 3, 1, 1, P.wand); } // Sprung
+  else if (v < 0.33) px(x0 + 1, y0 + 1, 1, 1, P.stein);                                     // Licht-Pixel
+}
+const STX = [1, 3, 4, 6];
+const stufeX = (c, k) => c % 2 ? STX[3 - k] : STX[k];
+function tileTreppe(y0, c){                        // je Zelle 4 Stufen, Lauf wechselt die Richtung (Zickzack im Schacht)
+  for (let k = 0; k < 4; k++){
+    const sx = stufeX(c, k), yy = y0 + 2*k;
+    px(sx, yy, 4, 1, P.steinH); px(sx, yy + 1, 4, 1, P.stein);
+    if (hash(c, k + 40) > 0.8) px(sx + 1 + ((hash(k, c)*2) | 0), yy, 1, 1, P.stein);   // abgetretene Stufe
+  }
+}
+function treppeX(y){                               // x des Helden auf der Treppe (Fuesse auf der Stufe)
+  const f = Math.max(0, y + 7 - OBEN), c = Math.floor(f / ZELLE), k = Math.min(3, Math.floor((f - c*ZELLE) / 2));
+  return stufeX(c, k);
+}
+
+const Q = new URLSearchParams(location.search);
+let variante = ({ '0':'0', a:'a', b:'b', c:'c', d:'d' })[(Q.get('v') || 'd').toLowerCase()] || 'd';
+const VAR_TEXT = { '0':'aus', a:'A Stein', b:'alt: Bernstein', c:'C Friedhof', d:'Gedächtnis' };
+const HELDEN = [['Brakk','Krieger'],['Ilsa','Diebin'],['Ott','Knappe'],['Fenn','Späher'],['Mara','Magierin'],['Rurik','Söldner'],
+  ['Wenna','Jägerin'],['Tobin','Mönch'],['Kesh','Schurke'],['Edda','Kriegerin'],['Ysolde','Ritterin'],['Hask','Barbar']];
+const GEGEN = { kobold:'gegen den Kobold', waechter:'gegen den Wächter', bestie:'gegen die Bestie', falle:'in der Falle',
+  schatz:'am Schatz', brunnen:'am Brunnen', boss:'gegen den Boss' };
+const ITEMNAMEN = [['ZAHNKNACKER','Keule','diese','ihr','sie'],['TROPFSTEIN','Schild','diesen','ihm','ihn'],['GLUTZAHN','Schwert','dieses','ihm','es'],
+  ['WURZELBISS','Axt','diese','ihr','sie'],['ASCHEHAUCH','Stab','diesen','ihm','ihn']];
+const GED = [   // je Ebene: Tode je Kammer (k 0-3, 4 = Boss-Halle), benanntes Item, Ausgaenge seit Start
+  { tode:{ 1:[['Fenn','Späher',1,'falle']], 2:[['Ott','Knappe',1,'waechter'],['Ilsa','Diebin',1,'waechter'],['Brakk','Krieger',2,'waechter']] },
+    item:{ name:'MOOSBISS', art:'Dolch', dies:'diesen', pd:'ihm', traeger:'Edda', kl:'Kriegerin', pa:'ihn', besuche:2 }, aus:0 },
+  { tode:{ 0:[['Tobin','Mönch',1,'kobold']], 3:[['Wenna','Jägerin',1,'waechter'],['Kesh','Schurke',3,'waechter']] }, item:null, aus:0 },
+  { tode:{ 2:[['Hask','Barbar',1,'bestie'],['Mara','Magierin',2,'bestie'],['Rurik','Söldner',1,'bestie'],['Ilsa','Diebin',2,'bestie']],
+           4:[['Ysolde','Ritterin',4,'boss']] }, item:{ name:'GLUTZAHN', art:'Schwert', dies:'dieses', pd:'ihm', traeger:'Hask', kl:'Barbar', pa:'es', besuche:3 }, aus:0 }
+];
+const LEGENDE = { name:'Ysolde', klasse:'Ritterin', ebene:2, laeufe:4 };   // C: Monument an der Oberflaeche
+const funken = [];
+const ged = i => GED[i] || (GED[i] = { tode:{}, item:null, aus:0 });
+const spotX = k => k < 4 ? inhaltX(k) + (R < KAMMER_BREIT ? 9 : 10) : BOSS_X() + 11;   // 3-Zellen-Kammer: 1 sp naeher, damit Stufe 2 passt
+const spotMax = k => (k < 4 ? raumX(k) + R - 2 : hortX('gold') - 2) - spotX(k);
+const tafelX = () => BOSS_X() + 8;                                          // Tafel in der Wand der Boss-Halle, zwischen Boss-Marke und Hort
+const tafelPos = i => variante === 'd' ? { x: W - 9, y: ebeneY(i) } : { x: tafelX(), y: bodenY(i) - WANDH + 1 };   // D3: Tafel in der Ader, rechts ueber dem Hort
+const NEST = [null,                                                         // spitze Splitter, keine runde Form (sonst liest es sich wie ↻)
+  ['.H.', '.A.', 'TAT', 'TTT'],
+  ['.H...', '.A.H.', '.ATA.', 'TATAT', 'TAKAT', 'TTTTT'],
+  ['...H...', '...A...', '.H.AT..', '.A.AT.H', '.ATAT.A', 'TATKATA', 'TAKKATT', '.TTTTT.']];
+const FARBE = { H:'amberH', A:'amber', T:'amberT', K:'kontur', S:'stein', L:'steinH', W:'wand', B:'text', b:'leise', R:'prestige', r:'prestH', G:'gold' };
+function karte(m, x, y){ m.forEach((z, r) => [...z].forEach((c, q) => { if (c !== '.') px(x + q, y + r, 1, 1, P[FARBE[c]]); })); }
+function stufe(n, k){ const L = Math.min(3, n); return Math.max(1, Math.min(L, spotMax(k) >= 7 ? 3 : spotMax(k) >= 5 ? 2 : 1)); }
+function spurStein(i, k, n){                                                // A: Grabstein mit Inschrift + Kerben in der Wand
+  const x = spotX(k), fy = bodenY(i), wy = fy - WANDH, h = 3 + Math.min(3, n), y = fy + 7 - h;
+  px(x + 1, y, 3, 1, P.stein); px(x + 1, y, 1, 1, P.steinH);
+  px(x, y + 1, 5, h - 1, P.stein); px(x, y + 1, 1, h - 1, P.steinH); px(x + 4, y + 1, 1, h - 1, P.wand);
+  for (let r = y + 2; r < fy + 6; r += 2) px(x + 1, r, 3, 1, P.kontur);        // Inschrift-Zeilen
+  px(x - 1, fy + 7, 7, 1, P.kontur);
+  for (let j = 0; j < Math.min(4, n); j++){ px(x + j*2, wy + 1, 1, 3, P.kontur); px(x + j*2 + 1, wy + 1, 1, 1, P.steinH); }
+  if (n >= 5) px(x - 1, wy + 2, 9, 1, P.kontur);                            // fuenfte Kerbe quer
+}
+function spurBernstein(i, k, n){                                            // B/C: Einschluss waechst, Ader merkt es sich
+  const x = spotX(k), fy = bodenY(i), L = stufe(n, k), m = NEST[L];
+  karte(m, x, fy + 8 - m.length);
+  if (L === 3){ px(x - 1, fy + 7, 1, 1, P.amberT); px(x + 7, fy + 7, 1, 1, P.amberT); }
+  const ay = ebeneY(i) + 6, a0 = k < 4 ? raumX(k) : BX;
+  if (n >= 2) px(a0 + 3, ay + 1, (k < 4 ? R : BW - 14) - 6, 1, P.amberT);   // Ader wird ueber der Kammer dicker
+  for (let j = 0; j < Math.min(4, n); j++) px(a0 + 5 + j*6, ay, 1, 1, j === 0 ? P.amberH : P.amber);   // je Tod ein Funke
+}
+function tafel(i){                                                          // benanntes Item: Tafel in der Wand der Boss-Halle
+  const { x, y } = tafelPos(i);
+  if (variante === 'a'){
+    px(x, y, 6, 5, P.stein); px(x, y, 6, 1, P.steinH); px(x, y, 1, 5, P.steinH);
+    px(x + 1, y + 2, 4, 1, P.kontur); px(x + 2, y + 3, 2, 1, P.kontur); px(x, y + 5, 6, 1, P.kontur);
+  } else {
+    karte(['TAAAAT', 'AHAKKA', 'AKKAHA', 'AAKAAA', 'TTAATT'], x, y);       // Dolch schraeg im Bernstein
+    px(x - 1, y - 1, 8, 1, P.steinH); px(x - 1, y + 5, 8, 1, P.kontur);
+  }
+}
+let namenAn = Q.get('namen') === '1', rufAn = Q.get('ruf') !== '0', traegerAn = Q.get('traeger') !== '0', diamantAn = Q.get('diamant') === '1';
+let bossArt = ({ raum:'raum', thron:'thron', beides:'beides' })[Q.get('boss')] || 'thron';   // Boss-Raum: Thron | Boden+Wand | beides
+let lbArt = Q.get('lauf') === 'band' ? 'band' : 'unter';                                   // Laufband: Leiste unter der Ebene | im Fels-Band
+let monArt = Q.get('monument') === 'stein' ? 'stein' : 'liste';                            // Monument: Liste der Items | laufender Grabstein
+const SCH7 = ['..KKK..', '.KBBBK.', 'KBBBBbK', 'KBKBKbK', 'KbBbBbK', '.KbLbK.', '..KKK..'];   // = Kit-Schaedel (nur fuer die Messung, gezeichnet wird das Kit-Bild)
+const SCH5 = ['.BBB.', 'BBBBb', 'BKBKb', 'bBbBb', '.bLb.'];                                   // klein: Pyramide und Trophaeen-Bord
+const THRON = ['H..H..H', 'b.bbb.b', 'bbrrrbb', 'bRRRRRb', 'bRRRRRb', 'bRRRRRb', 'bRRRRRb', 'bRRRRRb', 'bRRRRRb', 'bRRRRRb', 'bRRRRRb'];   // Rueckenlehne mit Krone ueber dem Boss
+const DOLCH = ['.B.', '.B.', '.B.', 'TTT', '.T.'];                                          // schwebendes Item (Klinge nach oben)
+const DOLCH_LEISE = ['.b.', '.b.', '.b.', 'bbb', '.b.'];                                   // D3: noch namenlos (Sediment, kein Glitzern)
+const spotBreit = k => spotMax(k) >= 7;
+const muenzY = (i, h) => variante === 'd' ? ebeneY(i) + 6 : bodenY(i) + 1 - h;   // D3: Kammer-Muenzen haengen an der Bernstein-Ader (der Hort bleibt auf der Kante)
+const bossThron = () => bossArt !== 'raum', bossBoden = () => bossArt !== 'thron';
+const lagen = (n, breit) => n < 2 ? [1] : breit ? (n >= 3 ? [2, 1] : [2]) : [1, 1];   // hoechstens 2 Lagen, die genaue Zahl steht in der Statistik
+function pyramide(i, k, n){
+  const fy = bodenY(i), breit = spotBreit(k);
+  if (n === 1){ if (breit) icon('schaedel', spotX(k), fy); else karte(SCH5, spotX(k), fy + 2); return; }
+  const L = lagen(n, breit), basisB = L[0]*4 + 1, rechts = raumX(k) + R - 3, links = rechts - basisB + 1;
+  L.forEach((c, r) => {
+    const lb = c*4 + 1, x0 = links + Math.round((basisB - lb) / 2), y0 = fy + 3 - r*4;
+    for (let j = 0; j < c; j++) karte(SCH5, x0 + j*4, y0);
+  });
+}
+const pyrBox = (i, k, n) => { const breit = spotBreit(k), L = lagen(n, breit), fy = bodenY(i);
+  if (n === 1) return { x: spotX(k), y: fy, w: breit ? 7 : 5, h: 7 };
+  const bw = L[0]*4 + 1; return { x: raumX(k) + R - 3 - bw + 1, y: fy + 3 - (L.length - 1)*4, w: bw, h: 5 + (L.length - 1)*4 }; };
+const bordX = () => BX + 13;
+const bordPlatz = () => Math.max(1, Math.min(3, Math.floor((W - 7 - bordX() + 1) / 6)));
+function bordD(i, n){                                                         // Trophaeen-Bord des Bosses: kleine Schaedel in einer Reihe
+  const fy = bodenY(i), x0 = bordX(), m = Math.min(n, bordPlatz());
+  px(x0 - 1, fy + 6, m*6 + 1, 1, P.steinH); px(x0 - 1, fy + 7, m*6 + 1, 1, P.kontur);
+  for (let j = 0; j < m; j++) karte(SCH5, x0 + j*6, fy + 1);
+}
+function kerbenD(i, n){                                                       // D4: Boss-Siege als Kerben in der Thron-Lehne (dunkle Kerben im Glut-Rot)
+  if (!bossThron()) return;
+  const fy = bodenY(i), x = BOSS_X() + 1, m = Math.min(n, 6);
+  for (let j = 0; j < m; j++) px(x + 1 + (j % 3)*2, fy - 2 + ((j / 3) | 0)*3, 1, 2, P.kontur);
+}
+function spurD(i, k, n){ if (k !== 4) pyramide(i, k, n); }                  // Boss-Siege zeichnet der Thron (Kerben)
+function bossRaumGrund(i){                                                    // Boden als Fliesen (Wand-Ton im Schachbrett), Zierleiste in Bernstein-tief
+  if (!bossBoden()) return;
+  const wy = ebeneY(i) + BAND, fy = wy + WANDH;
+  for (let cy = 0; cy < 2; cy++) for (let cx = 0; cx*ZELLE < BW; cx++){
+    if ((cx + cy) % 2) continue;
+    const x0 = BX + cx*ZELLE + 1, y0 = fy + cy*ZELLE + 1; px(x0, y0, Math.min(7, BX + BW - x0), 7, P.wand);
+  }
+  for (let y = 1; y < 7; y++){ if (y === 4) continue;                         // Wand heller: Ziegel in Stein statt Wand-Ton, Fugen bleiben
+    for (let x = 0; x < BW; x++) px(BX + x, wy + y, 1, 1, ((y < 4 ? x : x + 4) % ZELLE === 0) ? P.kontur : P.stein); }
+  px(BX, wy, BW, 1, P.amberT);                                                // Zierleiste oben an der Wand
+  for (let x = BX + 2; x < BX + BW - 1; x += 4) px(x, wy + 7, 2, 1, P.amberT); // Fries unten an der Wand
+}
+function thronZeichnen(fy){
+  if (!bossThron()) return;
+  const x = BOSS_X() + 1;
+  karte(THRON, x, fy - 6);
+  px(BOSS_X() - 1, fy + 7, 1, 6, P.leise); px(BOSS_X() - 2, fy + 7, 2, 1, P.leise);          // Armlehnen
+  px(BOSS_X() + 9, fy + 7, 1, 6, P.leise); px(BOSS_X() + 9, fy + 7, 2, 1, P.leise);
+}
+const LB_UNTER = 8;                                                          // D4 Nachtrag: 1 Zelle, Platz fuer den Statistik-Knopf (7 x 7)
+const LB = () => lbArt === 'unter' ? LB_UNTER : 0;
+const lauf = [];                                                              // je Ebene: { el, innen, schlange, spielt, aktuell }
+const KASTEN = 8;                                                             // D3: Platz fuer den Schaukasten links im Laufband (sp)
+const lbFenster = i => lbArt === 'unter'
+  ? { x: SCHACHT + 3, y: bodenY(i) + BODEN, w: W - SCHACHT - 6, h: LB_UNTER }
+  : { x: SCHACHT + 62, y: ebeneY(i), w: Math.max(20, W - 46 - (SCHACHT + 62)), h: BAND };   // zwischen Ebenen-Schild und Item-Name
+function lbGrund(i){                                                          // die Leiste selbst (nur "unter"): dunkel, Rollen-Enden in Knochen-Weiss
+  if (lbArt !== 'unter') return;
+  const y = bodenY(i) + BODEN;
+  px(SCHACHT, y, W - SCHACHT, LB_UNTER, P.panel);                         // Leiste haengt am Boden darueber: Panel-Ton, unten eine Kante
+  px(SCHACHT, y + LB_UNTER - 1, W - SCHACHT, 1, P.stein);
+  px(SCHACHT + 1, y, 1, LB_UNTER - 1, P.leise); px(W - 2, y, 1, LB_UNTER - 1, P.leise);
+}
+function lbLayout(){
+  buehne.querySelectorAll('.lband').forEach(e => e.remove());
+  ebenen.forEach((e, i) => {
+    const f = lbFenster(i), el = document.createElement('div'), fenster = document.createElement('div'), innen = document.createElement('span');
+    el.className = 'lband ' + lbArt; fenster.className = 'fenster'; fenster.appendChild(innen); el.appendChild(fenster);
+    const kx = f.x - (lbArt === 'unter' ? 0 : KASTEN);                           // die Flaeche schliesst den Schaukasten ein (Tap-Ziel)
+    Object.assign(el.style, { left: (kx*s) + 'px', top: ((f.y - 1)*s) + 'px', width: ((f.w + f.x - kx)*s) + 'px', height: ((f.h + 2)*s) + 'px' });
+    fenster.style.left = ((f.x - kx + (lbArt === 'unter' ? KASTEN : 0))*s) + 'px';
+    el.onclick = ev => { const L = lauf[i], r = el.getBoundingClientRect();
+      if (ev.clientX - r.left > (KASTEN + 2)*s && L && L.aktuell && L.aktuell.art === 'name') zeigeEinblender(i); else oeffneStatistik(i); };
+    buehne.appendChild(el);
+    lauf[i] = Object.assign(lauf[i] || { schlange: [] }, { el, fenster, innen, spielt: false });
+    lbSpiel(i);
+  });
+}
+function lbMeldung(i, html, art){
+  const L = lauf[i]; if (!L) return;
+  L.schlange.push({ html, art });
+  if (L.schlange.length > 3) L.schlange.splice(0, L.schlange.length - 3);    // mehr als drei warten: die aeltesten fallen weg, sie stehen in der Statistik
+  lbSpiel(i);
+}
+function lbSpiel(i){
+  const L = lauf[i]; if (!L || L.spielt || !L.schlange.length || !L.el) return;
+  const m = L.schlange.shift(); L.spielt = true; L.aktuell = m;
+  L.innen.innerHTML = m.html; L.el.classList.toggle('name', m.art === 'name');
+  const cw = L.fenster.clientWidth, sw = L.innen.scrollWidth, ueber = Math.max(0, sw - cw + 6);
+  const dauer = 5600 + ueber*30 + (m.art === 'name' ? 2000 : 0);              // 0,8 s rein, ~4 s stehen, 0,8 s raus
+  if (Q.has('stehen')){ L.innen.style.transform = 'translateX(4px)'; return; }   // fuer Screenshots: Meldung bleibt stehen
+  const a = L.innen.animate([
+    { transform: `translateX(${cw}px)` }, { transform: 'translateX(4px)', offset: 800 / dauer },
+    { transform: `translateX(${4 - ueber}px)`, offset: 1 - 800 / dauer }, { transform: `translateX(${-sw - 8}px)` }], { duration: dauer, easing: 'linear', fill: 'forwards' });
+  a.onfinish = () => { L.spielt = false; L.aktuell = null; L.innen.innerHTML = ''; L.el.classList.remove('name'); lbSpiel(i); };
+}
+const weiblich = kl => /in$/.test(kl);
+const einE = kl => (weiblich(kl) ? 'eine ' : 'ein ') + kl;
+const einenE = kl => weiblich(kl) ? 'eine ' + kl : 'einen ' + (kl === 'Barbar' ? 'Barbaren' : /e$/.test(kl) ? kl + 'n' : kl);   // Schurke -> Schurken
+const wer = (name, kl) => namenAn ? `<b>${name.toUpperCase()}</b> (${kl})` : einE(kl);
+const LEG_AB = 4;                                                             // besonderer Held = faellt nach 4 und mehr Laeufen (Vorschlag)
+function legenden(){ const L = []; GED.forEach((G, i) => Object.entries(G.tode).forEach(([k, liste]) => liste.forEach(h => { if (h[2] >= LEG_AB) L.push({ i, k:+k, h }); }))); return L; }
+const items = () => GED.map((G, i) => G.item && !G.item.pending ? Object.assign({ i }, G.item) : null).filter(Boolean);
+const unterwegs = name => { const it = items().find(x => x.name === name); return !!it && belegt(it.i); };
+const artikel = it => (/^diese$/.test(it.dies || '') || ['Keule', 'Axt'].includes(it.art) ? 'Eine ' : 'Ein ') + it.art;
+let statReiter = 'dungeon';
+function statZeile(zellen, kopf){ return '<tr>' + zellen.map(z => kopf ? `<th>${z}</th>` : `<td>${z}</td>`).join('') + '</tr>'; }
+function statistikHtml(r){
+  const nur = r === 'dungeon' ? null : r, alleI = items(), leg = legenden(), RUF = ['', 'niedrig', 'mittel', 'hoch'];
+  const imBlick = x => nur === null || x.i === nur;
+  let h = '';
+  if (nur === null){
+    h += '<h3>Ebenen</h3><table>' + statZeile(['', 'Gefallene', 'gefährlichste', 'Boss-Siege', 'Ruf'], true);
+    ebenen.forEach((e, i) => { const G = ged(i), t = Object.entries(G.tode).map(([k, l]) => [+k, l.length]), sum = t.reduce((a, b) => a + b[1], 0);
+      const top = t.sort((a, b) => b[1] - a[1])[0];
+      const k4 = (G.tode[4] || []).length, tk = t.filter(z => z[0] < 4).sort((a, b) => b[1] - a[1])[0];
+      h += statZeile([`E${i + 1} ${e.name}`, sum - k4, tk ? `Kammer ${tk[0] + 1} (${tk[1]})` : '–', k4 || '–', rufAn ? RUF[rufStufe(i)] : '–']); });
+    h += '</table>';
+  } else {
+    const e = ebenen[nur], G = ged(nur);
+    h += `<h3>E${nur + 1} ${e.name}</h3><table>` + statZeile(['', 'Inhalt', 'Gefallene'], true);
+    const ANZ = { kobold:'Kobold', waechter:'Wächter', bestie:'Bestie', falle:'Falle', schatz:'Schatz', brunnen:'Brunnen' };
+    e.raeume.forEach((rm, k) => { h += statZeile([`Kammer ${k + 1}`, ANZ[rm.typ] || rm.typ, (G.tode[k] || []).length || '–']); });
+    h += statZeile(['Boss-Halle', 'Boss', '–']) + '</table>' + `<p class="leer">Boss-Siege: ${(G.tode[4] || []).length}</p>`;
+  }
+  const I = alleI.filter(imBlick);
+  h += '<h3>Monument · Items</h3>' + (I.length ? '<table>' + statZeile(['Item', 'Ebene', 'Besuche', ''], true) +
+    I.map(it => statZeile([`<b>${it.name}</b> ${it.art}`, `E${it.i + 1}`, it.besuche || 1, unterwegs(it.name) ? '<span class="an">unterwegs</span>' : 'ruht'])).join('') + '</table>'
+    : '<p class="leer">noch keins</p>');
+  const S = I.filter(it => (it.besuche || 1) >= 2);
+  h += '<h3>Stammgäste</h3>' + (S.length ? '<ul>' + S.map(it => `<li>${namenAn ? `<b>${it.traeger.toUpperCase()}</b>, ${it.kl}, mit` : (weiblich(it.kl) ? 'Die ' : 'Der ') + it.kl + ' mit'} <b>${it.name}</b> · ${it.besuche}. Besuch</li>`).join('') + '</ul>'
+    : '<p class="leer">noch keine</p>');
+  const B = leg.filter(imBlick);
+  h += '<h3>Besondere Helden</h3>' + (B.length ? '<ul>' + B.map(l => `<li>${namenAn ? `<b>${l.h[0].toUpperCase()}</b>, ${l.h[1]},` : (weiblich(l.h[1]) ? 'Eine ' : 'Ein ') + l.h[1]} fiel nach ${l.h[2]} Läufen · E${l.i + 1} ${l.k < 4 ? 'Kammer ' + (l.k + 1) : 'Boss-Halle'}</li>`).join('') + '</ul>'
+    : '<p class="leer">noch keine</p>');
+  return h;
+}
+function oeffneStatistik(r){
+  statReiter = r === undefined || r === null ? 'dungeon' : r;
+  document.getElementById('sTitel').textContent = statReiter === 'dungeon' ? 'STATISTIK · DUNGEON' : `STATISTIK · E${statReiter + 1} ${ebenen[statReiter].name.toUpperCase()}`;
+  const reiter = document.getElementById('sReiter');
+  reiter.innerHTML = ['dungeon'].concat(ebenen.map((e, i) => i)).map(x => `<button class="knopf${x === statReiter ? ' an' : ''}" data-r="${x}">${x === 'dungeon' ? 'Dungeon' : 'E' + (x + 1)}</button>`).join('');
+  reiter.querySelectorAll('button').forEach(b => { b.onclick = () => oeffneStatistik(b.dataset.r === 'dungeon' ? 'dungeon' : +b.dataset.r); });
+  document.getElementById('sInhalt').innerHTML = statistikHtml(statReiter);
+  document.getElementById('chronik').classList.add('auf');
+}
+const chronikZu = () => document.getElementById('chronik').classList.remove('auf');
+function kandidat(i){ const G = ged(i); if (!G.kand){ const nr = GED.filter(g => g.item).length + i; const [name, art, dies, pd, pa] = ITEMNAMEN[nr % ITEMNAMEN.length]; G.kand = { name, art, dies, pd, pa }; } return G.kand; }
+const belegt = i => oben.some(o => o.item && o.item.i === i) || treppenGaenger.some(g => g.item && g.item.i === i) || ebenen.some(e => e.traeger && e.traeger.i === i);
+function neuesItem(){
+  if (!traegerAn || variante !== 'd' || Math.random() > .5) return null;
+  const frei = ebenen.map((e, i) => i).filter(i => !belegt(i) && !(ged(i).item && ged(i).item.pending));
+  return frei.length ? { i: frei[(Math.random()*frei.length) | 0] } : null;
+}
+const istBenannt = i => { const G = ged(i); return !!(G.item && !G.item.pending); };
+function itemSprite(x, y, item, t){                                           // x, y = Held (5 x 7 sp); das Item schwebt darueber
+  if (!item || variante !== 'd' || !traegerAn) return;
+  x = Math.round(x); const bob = ((t / 320) | 0) % 2, iy = Math.round(y) - 7 - bob;
+  if (istBenannt(item.i)){
+    karte(DOLCH, x + 1, iy);
+    const ph = ((t / 160) | 0) % 4;                                            // Raute wandert: klein, gross, klein, aus
+    const R1 = [[1, 0], [0, 1], [2, 1], [1, 2]], R2 = [[2, 0], [1, 1], [3, 1], [0, 2], [4, 2], [1, 3], [3, 3], [2, 4]];
+    if (ph === 0 || ph === 2) R1.forEach(([dx, dy]) => px(x + 4 + dx, iy - 1 + dy, 1, 1, P.text));
+    if (ph === 1) R2.forEach(([dx, dy]) => px(x + 3 + dx, iy - 2 + dy, 1, 1, P.text));
+  } else karte(DOLCH_LEISE, x + 1, iy);                                        // namenlos: Stein-Toene, kein Glitzern
+  return iy;
+}
+function traegerZeichnen(e, i, fy, t){
+  if (!e.traeger || e.hx === null) return;
+  const x = Math.round(e.hx), iy = itemSprite(x, fy + LAUF, e.traeger, t);
+  const benannt = istBenannt(i), text = benannt ? ged(i).item.name : `${kandidat(i).art} ${ged(i).aus}/3`;
+  if (!e.tag){ e.tag = document.createElement('div'); buehne.appendChild(e.tag); }
+  e.tag.className = 'itag' + (benannt ? '' : ' kand'); if (e.tag.textContent !== text) e.tag.textContent = text;
+  e.tag.style.left = ((x + 2.5)*s) + 'px'; e.tag.style.top = ((iy - 2)*s) + 'px';
+}
+function traegerWeg(e){ if (e.tag){ e.tag.remove(); e.tag = null; } if (e.traeger){ e.traeger = null; overlays(); monumentLauf(); } }
+function traegerAnkunft(e, t, item){
+  traegerWeg(e);
+  const i = ebenen.indexOf(e);
+  if (!item || item.i !== i || !traegerAn || variante !== 'd') return;
+  const G = ged(i);
+  e.traeger = { i };
+  if (istBenannt(i)){ G.item.besuche = (G.item.besuche || 1) + 1; lbMeldung(i, `<b>${G.item.name}</b> ist zurück · ${G.item.besuche}. Besuch`, 'wieder'); }
+  overlays(); monumentLauf();
+}
+function ausgangTraeger(e, i, t){                                              // D3: der Namens-Moment haengt am Traeger, den man ohnehin beobachtet
+  if (variante !== 'd' || !e.traeger || istBenannt(i) || (ged(i).item && ged(i).item.pending)) return;
+  const G = ged(i); G.aus++;
+  if (G.aus >= 3 && !Q.has('ruhig')) nenne(i, t);
+  else lbMeldung(i, `${kandidat(i).art} · ${G.aus}. Mal lebend hinausgetragen · noch ${3 - G.aus}`, 'zaehlt');
+}
+const KASTEN_K = ['LLLLLLL', 'LbbbbbL', 'LWBBBWL', 'LWBKBWL', 'LWBBBWL', 'LbbbbbL', 'LLLLLLL'];   // Knopf mit Kante + Rolle, wie oben im HUD
+function schaukasten(i, t){
+  const f = lbFenster(i), x = lbArt === 'unter' ? f.x : f.x - 8, y = lbArt === 'unter' ? f.y : f.y, e = ebenen[i];
+  const blink = e.kastenBlink > t && ((t / 200) | 0) % 2 === 0;
+  karte(blink ? KASTEN_K.map(z => z.replace(/L/g, 'H')) : KASTEN_K, x, y);   // Blinken: Kante in Bernstein-hell
+}
+const RUF = [3, 2, 1];
+const rufStufe = i => RUF[i] || 1;
+const PULS = { 2: { periode: 2400, an: 700 }, 3: { periode: 900, an: 330 } };
+const DIAMANT = ['.B.', 'BbB', '.B.'], RUBIN = ['.r.', 'rRr', '.R.'];
+function aderRuf(i){                                                          // Ruf: mittel = Zacken, hoch = hohe Zacken + heller Kern
+  const ay = ebeneY(i) + 6, a0 = SCHACHT + 2, a1 = Math.min(aderEnde(), W - 11), st = rufStufe(i);   // mittel = Zacken, hoch = Zacken + Edelsteine
+  if (st < 2) return;
+  for (let x = a0; x < a1; x++){
+    const q = x - a0;
+    if (st === 2 && q % 8 === 3) px(x, ay - 1, 1, 1, P.amberT);                // kleine Zacke
+    if (st === 3 && q % 5 === 2){ px(x, ay - 1, 1, 1, P.amber); px(x, ay - 2, 1, 1, P.amberT); }   // hohe Zacke
+    if (st === 3 && q % 5 === 0) px(x, ay, 1, 1, P.amber);                    // heller Kern
+  }
+}
+function aderPuls(i, t, pulsSonst){
+  if (!rufAn || variante !== 'd') return 0;
+  const e = ebenen[i], st = rufStufe(i), ay = ebeneY(i) + 6, a0 = SCHACHT + 2, a1 = aderEnde();
+  let an = false, zaehlt = 0;
+  if (e.rufWechsel > t){ an = ((t / 300) | 0) % 2 === 0; zaehlt = 1; }       // Stufenwechsel: 3 schnelle Pulse
+  else if (PULS[st] && !pulsSonst){ an = (t % PULS[st].periode) < PULS[st].an; zaehlt = 1; }
+  if (an) for (let x = a0; x < a1; x++) if ((x - a0) % 3) px(x, ay, 1, 1, st === 3 ? P.amberH : P.amber);
+  if (diamantAn && st === 3){ const a2 = Math.min(a1, W - 11); for (let x = a0 + 14; x < a2 - 4; x += 30) karte(DIAMANT, x - 1, ay - 3); }   // Schalter: 1 sp ueber der Ader, vom Puls nicht uebertoent
+  return zaehlt;
+}
+function monumentLauf(){
+  const el = buehne.querySelector('.monLauf span'); if (!el) return;
+  const I = items(), akt = I.filter(it => unterwegs(it.name));
+  el.innerHTML = (akt.length ? akt.map(it => `✦ <b>${it.name}</b> unterwegs auf E${it.i + 1}`) : ['alle Items ruhen']).concat(I.filter(it => !unterwegs(it.name)).map(it => `${it.name} ruht`)).join(' · ');
+}
+const flieger = [];
+function fliegerZeichnen(t){
+  for (let n = flieger.length - 1; n >= 0; n--){
+    const f = flieger[n]; if (t < f.t0) continue;
+    const p = Math.min(1, (t - f.t0) / 900), q = 1 - Math.pow(1 - p, 2);
+    const x = f.x0 + (f.x1 - f.x0)*q, y = f.y0 + (f.y1 - f.y0)*q - Math.sin(p*Math.PI)*6;
+    karte(DOLCH, Math.round(x), Math.round(y));
+    if (((t / 90) | 0) % 2) [[-1, -1], [3, -1], [-1, 5], [3, 5]].forEach(([dx, dy]) => px(Math.round(x + dx), Math.round(y + dy), 1, 1, P.amberH));
+    if (p >= 1){ flieger.splice(n, 1); f.fertig(t); }
+  }
+}
+
+function erinnerungTapD(x, y){                                              // D2: Pyramide oder Tafel -> Statistik der Ebene, Monument -> Statistik Dungeon
+  if (y < OBEN && x >= W - 100){ oeffneStatistik('dungeon'); return true; }
+  const i = Math.floor((y - OBEN) / EH), G = GED[i]; if (!G || !ebenen[i]) return false;
+  const fy = bodenY(i);
+  const tp = tafelPos(i);
+  if (G.item && !G.item.pending && x >= tp.x - 2 && x < tp.x + 8 && y >= tp.y - 1 && y < tp.y + 6){ zeigeEinblender(i); return true; }
+  for (const [k, liste] of Object.entries(G.tode)){
+    if (!liste.length || +k === 4) continue;
+    const b = pyrBox(i, +k, liste.length);
+    if (x >= b.x - 1 && x < b.x + b.w + 1 && y >= b.y - 1 && y < b.y + b.h + 1){ ebenen[i].kastenBlink = performance.now() + 1800; return true; }   // D3: kein Fenster, der Schaukasten blinkt
+  }
+  return false;
+}
+function lum(hx){ const v = [1, 3, 5].map(j => parseInt(hx.slice(j, j + 2), 16) / 255).map(c => c <= .03928 ? c/12.92 : Math.pow((c + .055)/1.055, 2.4));
+  return .2126*v[0] + .7152*v[1] + .0722*v[2]; }
+const ratioL = (a, b) => Math.round(100 * (Math.max(a, b) + .05) / (Math.min(a, b) + .05)) / 100;
+function fuellLum(m){ let s = 0, n = 0; m.forEach(z => [...z].forEach(c => { if (c !== '.' && c !== 'K'){ s += lum(P[FARBE[c]]); n++; } })); return s / n; }
+function kontrastGate(){
+  const raum = lum(P.raum), panel = lum(P.panel), wand = lum(P.wand), bild = .067;
+  const fig = (was, m, gegen) => { const L = fuellLum(m), r = { was, raum: ratioL(L, raum), panel: ratioL(L, panel), bild: ratioL(L, bild) };
+    if (gegen) r.wand = ratioL(L, wand); r.ok = Math.min(r.raum, r.panel, r.bild, r.wand || 99) >= 3; return r; };
+  const txt = (was, f, h, soll) => { const r = ratioL(lum(f), lum(h)); return { was, ratio: r, soll, ok: r >= soll }; };
+  return {
+    figuren: [fig('Schädel 7x7 (Kit)', SCH7, true), fig('Schädel 5x5 (Pyramide, Bord)', SCH5, true), fig('Thron (Lehne, sitzt in der Wand)', THRON, true),
+      fig('Schwebendes Item (Dolch)', DOLCH, true), fig('Namenloses Item (Stein-Töne)', DOLCH_LEISE, true), fig('Schaukasten (Rahmen + Item)', KASTEN_K),
+ fig('Thron-Polster Glut-Rot allein (Teilfläche)', ['R'], true), fig('Fliesen Boss-Halle (Wand-Ton, Muster)', ['W'])],
+    zeichen: [txt('Schaukasten-Rahmen gegen Leiste (Panel)', P.leise, P.panel, 3), txt('Diamant gegen Fels-Band', P.text, P.kontur, 3), txt('Rubin gegen Fels-Band', P.prestige, P.kontur, 3), txt('Münze Gold gegen Fels-Band', P.gold, P.kontur, 3), txt('Münze Mana gegen Fels-Band', P.mana, P.kontur, 3),
+      txt('Thron-Rahmen gegen helle Wand (Stein)', P.leise, P.stein, 3), txt('Wand hell gegen Wand normal (nur Fläche)', P.stein, P.wand, 1), txt('Boss-Icon (Glut-Rot) auf Fliese', P.prestige, P.wand, 3), txt('Held (Bernstein) auf Fliese', P.amber, P.wand, 3),
+      txt('Zierleiste Bernstein-tief gegen Wand', P.amberT, P.wand, 3), txt('Fliese gegen Boden (nur Muster)', P.wand, P.raum, 1),
+      txt('Raute (Knochen-Weiß) gegen Raum', P.text, P.raum, 3), txt('Ader-Puls hoch gegen Fels-Band', P.amberH, P.kontur, 3), txt('Ader-Puls mittel gegen Fels-Band', P.amber, P.kontur, 3)],
+    text: [txt('Monument ruht (leise) auf Panel', P.leise, P.panel, 4.5), txt('Monument im Dungeon (Bernstein-hell)', P.amberH, P.panel, 4.5), txt('Item-Schild namenlos (leise)', P.leise, P.kontur, 4.5),
+      txt('Laufband-Text (Leiste Panel-Ton)', P.text, P.panel, 4.5), txt('Laufband Name (Bernstein-hell)', P.amberH, P.panel, 4.5), txt('Laufband im Fels-Band', P.text, P.kontur, 4.5),
+      txt('Statistik-Text', P.text, P.panel, 4.5), txt('Statistik leise', P.leise, P.panel, 4.5), txt('Statistik unterwegs (Bernstein)', P.amber, P.panel, 4.5),
+      txt('Monument-Liste', P.text, P.kontur, 4.5), txt('Item-Schild', P.amberH, P.kontur, 4.5)]
+  };
+}
+
+function erinnerungZeichnen(){
+  if (variante === '0') return;
+  ebenen.forEach((e, i) => {
+    const G = ged(i);
+    if (variante === 'd' && rufAn) aderRuf(i);
+    Object.entries(G.tode).forEach(([k, liste]) => { k = +k; if (!liste.length) return;
+      (variante === 'd' ? spurD : spurBernstein)(i, k, liste.length); });
+    if (G.item && !G.item.pending) tafel(i);
+  });
+
+}
+function erinnerungOverlays(L){
+  if (variante === '0') return;
+  ebenen.forEach((e, i) => { const G = ged(i); if (!G.item || G.item.pending) return;
+    if (variante !== 'd') L('gname mitte', G.item.name, tafelX() + 3, ebeneY(i) + 0.5); });   // D4: die Ader-Tafel hat kein Schild
+  if (variante === 'd') return;                                             // D4: das Monument steht nur noch in der Statistik
+  const d = L('platzhalter', monArt === 'stein' ? '[Bild: Grabstein]' : '[Bild: Monument]', W - 46, 2);
+  d.style.width = (20*s) + 'px'; d.style.height = (17*s) + 'px'; d.title = 'Monument der Items';
+  const I = items();
+  if (monArt === 'liste'){                                                  // Liste der Items, neueste oben, ✦ = gerade unterwegs
+    const max = s >= 3 ? 3 : W < 180 ? 1 : 2, I2 = I.slice().reverse();
+    const zeilen = I2.slice(0, max).map(it => belegt(it.i) ? `<span class="da">✦ ${it.name} · ${it.art}</span>` : `${it.name} · ${it.art}`);   // D3: im Dungeon = leuchtet
+    if (I2.length > max) zeilen.push(`<span class="kopf">und ${I2.length - max} mehr</span>`);
+    if (!zeilen.length) zeilen.push('<span class="kopf">noch kein Item</span>');
+    L('tafelM', zeilen.join('<br>'), W - 48, 2);
+  } else {                                                                  // laufender Grabstein: Laufband auf dem Sockel, die aktiven Items
+    const mw = Math.min(80, W - 80), m = L('monLauf', '<span></span>', W - 48 - mw, 9);
+    m.style.width = (mw*s) + 'px'; monumentLauf();
+  }
+}
+function merke(i, k, typ, t, still){                                        // live: ein Held faellt -> Spur entsteht sofort, das Laufband der Ebene sagt es
+  const G = ged(i), h = HELDEN[(Math.random()*HELDEN.length) | 0];
+  const laeufe = Math.random() < .1 ? LEG_AB + ((Math.random()*2) | 0) : 1 + ((Math.random()*3) | 0);   // selten ein besonderer Held
+  const z = [h[0], h[1], laeufe, typ];
+  (G.tode[k] = G.tode[k] || []).push(z);
+  if (variante === '0' || still) return;
+  baueGrund(); overlays();
+  if (variante === 'd'){
+    const wo = k < 4 ? `Kammer ${k + 1}` : 'Boss-Halle', bes = laeufe >= LEG_AB ? ` · <b>nach ${laeufe} Läufen</b>` : '';
+    lbMeldung(i, k < 4 ? `${wo}: ${wer(h[0], h[1])} fiel ${GEGEN[typ] || ''}${bes}` : `${wo}: der Boss besiegt ${namenAn ? wer(h[0], h[1]) : einenE(h[1])}${bes}`, 'tod');
+    const b = k === 4 ? { x: bordX(), y: bodenY(i) + 1, w: bordPlatz()*6 - 1, h: 6 } : pyrBox(i, k, G.tode[k].length);
+    funken.push(Object.assign(b, { bis: t + 900 }));
+    return;
+  }
+  const n = G.tode[k].length, w = NEST[stufe(n, k)][0].length;
+  funken.push({ x: spotX(k), y: bodenY(i) + 1, w, h: 7, bis: t + 900 });
+}
+function merkeAusgang(i, t){
+  if (variante === 'd') return;                                             // D3: in D zaehlt nur das getragene Item (ausgangTraeger)
+  const G = ged(i); G.aus++;
+  if (!G.item && G.aus >= 3 && variante !== '0' && !Q.has('ruhig')) nenne(i, t);
+}
+function nenne(i, t){
+  t = t || performance.now();
+  const G = ged(i), k = variante === 'd' ? kandidat(i) : null, nr = GED.filter(g => g.item).length + i;
+  const [name, art, dies, pd, pa] = k ? [k.name, k.art, k.dies, k.pd, k.pa] : ITEMNAMEN[nr % ITEMNAMEN.length];
+  const h = HELDEN[(Math.random()*HELDEN.length) | 0];
+  G.item = { name, art, dies, pd, traeger: h[0], kl: h[1], pa, besuche:1, aus: i, pending: variante === 'd' }; G.kand = null;
+  const fy = bodenY(i), tp = tafelPos(i);
+  const fertig = tt => { G.item.pending = false; baueGrund(); overlays(); funken.push({ x: tp.x, y: tp.y, w: 6, h: 5, bis: tt + 1500 }); monumentLauf(); };
+  if (variante === 'd'){
+    const mx = SCHACHT + (W - SCHACHT)/2, my = ebeneY(i) + BAND + 9;
+    const nm = document.createElement('div'); nm.className = 'namGross';
+    nm.innerHTML = `<span class="klein">${artikel(G.item)} heißt jetzt</span><span class="name">${name}</span>`;
+    nm.style.left = (mx*s) + 'px'; nm.style.top = (my*s) + 'px'; buehne.appendChild(nm); setTimeout(() => nm.remove(), 3300);
+    funken.push({ x: W - 7, y: fy + LAUF - 1, w: 6, h: 8, bis: t + 900 });
+    const bw = Math.min(W - SCHACHT - 8, 70), bh = 18;                        // Glitzer rund um das Schild, 2,6 s lang immer neu
+    for (let n = 0; n < 16; n++){ const tt = t + n*160, ang = Math.random()*Math.PI*2;
+      funken.push({ x: mx + Math.cos(ang)*(bw/2 + 2 + Math.random()*6), y: my + Math.sin(ang)*(bh/2 + 2 + Math.random()*4), w: 2, h: 2, ab: tt, bis: tt + 700 }); }
+    flieger.push({ x0: W - 5, y0: fy + LAUF, x1: tp.x + 1, y1: tp.y, t0: t + 500, fertig });
+    lbMeldung(i, `Neuer Name: ${artikel(G.item)} heißt jetzt <b>${name}</b> · dreimal lebend hinausgetragen`, 'name');
+    return;
+  }
+  fertig(t); zeigeEinblender(i);
+}
+function zeigeEinblender(i){                                                // das grosse Bild nur auf Wunsch (Laufband oder Tafel antippen)
+  const G = ged(i), it = G.item; if (!it) return;
+  const wer2 = namenAn || variante !== 'd' ? it.traeger : (weiblich(it.kl) ? 'Eine ' : 'Ein ') + it.kl;
+  document.getElementById('ebSatz').innerHTML = `${wer2} hat ${it.dies || 'diesen'} ${it.art} dreimal lebend aus E${i + 1} ${ebenen[i].name} getragen.<br>Der Dungeon gibt ${it.pd || 'ihm'} einen Namen:`;
+  document.getElementById('ebName').textContent = '„' + it.name + '“';
+  document.getElementById('einblender').classList.add('an');
+}
+document.getElementById('einblender').onclick = () => document.getElementById('einblender').classList.remove('an');
+function funkenZeichnen(t){
+  for (let n = funken.length - 1; n >= 0; n--){
+    const f = funken[n]; if (f.bis < t){ funken.splice(n, 1); continue; } if (f.ab && f.ab > t) continue;
+    const a = ((t / 90) | 0) % 2;
+    (a ? [[-1, -1], [f.w, -1], [-1, f.h], [f.w, f.h]] : [[f.w >> 1, -2], [-2, f.h >> 1], [f.w + 1, f.h >> 1]])
+      .forEach(([dx, dy]) => px(Math.round(f.x + dx), Math.round(f.y + dy), 1, 1, P.amberH));
+  }
+}
+let zettelAus = 0;
+function zettel(x, y, html){
+  buehne.querySelectorAll('.zettel').forEach(z => z.remove());
+  const z = document.createElement('div'); z.className = 'zettel'; z.innerHTML = html;
+  z.style.left = Math.max(100, Math.min(W*s - 100, x*s)) + 'px'; z.style.top = (y*s) + 'px';
+  if (y < OBEN + EH){ z.style.top = ((y + 11)*s) + 'px'; z.style.transform = 'translate(-50%,0)'; }   // oberste Ebene: Zettel unter die Spur
+  buehne.appendChild(z); clearTimeout(zettelAus); if (!Q.has('zettel')) zettelAus = setTimeout(() => z.remove(), 4000);
+}
+function erinnerungTap(x, y){                                               // Spur oder Tafel antippen -> Zettel (Storyteller-Lesart)
+  if (variante === '0') return false;
+  if (variante === 'd') return erinnerungTapD(x, y);
+  const i = Math.floor((y - OBEN) / EH), G = GED[i]; if (!G || !ebenen[i]) return false;
+  const fy = bodenY(i);
+  if (G.item && x >= tafelX() - 2 && x < Math.min(tafelX() + 8, hortX('gold') - 1) && y >= fy - WANDH - 1 && y < fy + 1){
+    zettel(tafelX() + 3, fy - WANDH - 1, `<b>${G.item.name}</b> · ${G.item.art}<br>${G.item.traeger} trug ${G.item.pa} dreimal lebend hinaus. Seitdem heißt ${G.item.pa === 'ihn' ? 'er' : G.item.pa} so.<br><span class="leise">Neuer Träger: noch keiner.</span>`);
+    return true;
+  }
+  for (const [k, liste] of Object.entries(G.tode)){
+    if (!liste.length) continue;
+    const sx = spotX(+k);
+    if (x >= sx - 3 && x < sx + 10 && y >= fy - 1 && y < fy + 8){
+      const l = liste[liste.length - 1], n = liste.length;
+      const kopf = n === 1 ? 'Hier fiel ein Held.' : `Hier fielen ${n} Helden.`;
+      zettel(sx + 3, fy - 1, `${kopf}<br>Zuletzt <b>${l[0].toUpperCase()}</b>, ${l[1]}, im ${l[2]}. Lauf, ${GEGEN[l[3]] || ''}.` +
+        (n > 1 ? `<br><span class="leise">Davor: ${liste.slice(0, -1).reverse().slice(0, 3).map(z => z[0]).join(', ')}</span>` : ''));
+      return true;
+    }
+  }
+  return false;
+}
+function bernsteinAnteil(c, nur){                                           // Anteil Bernstein-Pixel im Ebenen-Bereich (Flaechen-Regel §2), nur = eine Ebene
+  const y0 = nur === undefined ? OBEN : ebeneY(nur), h = nur === undefined ? ebeneY(ebenen.length) - OBEN : BAND + WANDH + BODEN;
+  const d = c.getContext('2d').getImageData(SCHACHT, y0, W - SCHACHT, h).data;
+  const ziel = [P.amber, P.amberH, P.amberT].map(hx => parseInt(hx.slice(1), 16));
+  let n = 0, alle = 0;
+  for (let p = 0; p < d.length; p += 4){ alle++; if (ziel.includes((d[p] << 16) | (d[p+1] << 8) | d[p+2])) n++; }
+  return Math.round(1000 * n / alle) / 10;
+}
+
+const DEKO = [];                                   // {i, k, art, x, y, w, h} fuer die Messung
+function baueGrund(){
+  g = bgx; DEKO.length = 0;
+  px(0, 0, W, H, P.nacht);
+  grundOberflaeche();
+  grundSchacht(OBEN, H - OBEN);
+  ebenen.forEach((e, i) => grundEbene(i));
+  erinnerungZeichnen();
+  grundBauplatz();
+  g = ctx;
+}
+function grundOberflaeche(){
+  px(0, 0, W, OBEN, P.panel);
+  for (let x = 0; x < W; x++){
+    const h = 8 + Math.round(6*Math.sin(x*0.09) + 4*Math.sin(x*0.23 + 1.3) + 2*hash(x, 7));
+    px(x, OBEN - h, 1, h, P.wand);
+    if (hash(x, 3) > 0.93) px(x, OBEN - h, 1, 1, P.stein);
+  }
+  px(1, OBEN - 12, 10, 12, P.kontur);                                       // Schacht-Eingang (Torbogen)
+  px(2, OBEN - 13, 8, 1, P.kontur); px(3, OBEN - 14, 6, 1, P.kontur);
+  px(0, OBEN - 13, 1, 13, P.steinH); px(11, OBEN - 13, 1, 13, P.steinH);
+}
+function grundSchacht(y0, h){
+  px(0, y0, SCHACHT, h, P.kontur);
+  px(0, y0, 1, h, P.stein); px(SCHACHT - 1, y0, 1, h, P.stein);
+  if (modus === 'treppe'){
+    for (let c = 0; y0 + c*ZELLE < y0 + h; c++) tileTreppe(y0 + c*ZELLE, c);
+  } else if (modus === 'aufzug'){
+    px(2, y0, 1, h, P.wand); px(9, y0, 1, h, P.wand);                       // Fuehrungsschienen
+    for (let y = y0 + 2; y < y0 + h; y += ZELLE){ px(2, y, 1, 1, P.stein); px(9, y, 1, 1, P.stein); }
+  } else {
+    fels(1, y0, SCHACHT - 2, h);                                            // Portal: kein Schacht, nur Fels
+  }
+}
+function grundEbene(i){
+  const y = ebeneY(i), wy = y + BAND, fy = wy + WANDH;
+  for (let cx = 0; SCHACHT + cx*ZELLE < W; cx++) tileBand(SCHACHT + cx*ZELLE, y, cx, i*31 + 3);
+  const a0 = SCHACHT + 2, a1 = aderEnde(), ay = y + 6;
+  for (let x = a0; x < a1; x++){                                            // Hauptader: Bernstein-tief, selten ein Buckel, selten ein Funke
+    const zx = ((x - SCHACHT) / ZELLE) | 0, lx = (x - SCHACHT) % ZELLE, hb = hash(zx, i + 50), buckel = (hb*6) | 0;
+    const yy = (hb < 0.35 && (lx === buckel || lx === buckel + 1)) ? ay - 1 : ay;
+    px(x, yy, 1, 1, (lx === 3 && hash(zx, i + 70) > 0.85) ? P.amber : P.amberT);
+  }
+  px(hortX('gold') + 4, ay + 1, 1, 1, P.amberT); px(hortX('mana') + 4, ay + 1, 1, 1, P.amberT);   // Ader speist den Hort
+  if (variante === 'd') px(hortX('ruhm') + 4, ay + 1, 1, 1, P.amberT);
+  for (let k = 0; k < 4; k++){
+    const gx = raumX(k) + R;
+    fels(gx, wy, GANG, WANDH + LAUF - 1);
+    px(gx, fy + LAUF - 1, GANG, 1, P.stein);
+    px(gx, fy + LAUF, GANG, 7, P.raum); px(gx + (k % 2 ? 3 : 0), fy + LAUF, 1, 7, P.wand);
+    px(gx, fy + BODEN - 1, GANG, 1, P.stein);
+  }
+  const kammern = [0,1,2,3].map(k => [raumX(k), R]).concat([[BX, BW]]);
+  kammern.forEach(([kx, kw], k) => {
+    g.save(); g.beginPath(); g.rect(kx, wy, kw, WANDH + BODEN); g.clip();
+    for (let cx = 0; cx*ZELLE < kw; cx++){
+      const id = i*7 + k;
+      tileWand(kx + cx*ZELLE, wy, cx, id);
+      tileBoden(kx + cx*ZELLE, fy, cx, id*2);
+      tileBoden(kx + cx*ZELLE, fy + ZELLE, cx, id*2 + 1);
+    }
+    g.restore();
+    if (k === 4 && variante === 'd') bossRaumGrund(i);                     // D2: Boss-Halle ueber Boden und Wand absetzen
+    px(kx, fy + BODEN - 1, kw, 1, P.stein);                                // Bodenkante
+    (k < 4 ? [kx, kx + kw - 2] : [kx]).forEach(p => { px(p, wy, 2, WANDH + BODEN, P.stein); px(p, wy, 1, WANDH + BODEN, P.steinH);
+      px(p, fy + LAUF, 2, 7, P.raum); });
+    const cl = k < 4 ? inhaltX(k) : BOSS_X();
+    if (!(k === 4 && variante === 'd' && bossBoden())) px(cl - 1, fy + 3, 11, 11, P.raum);
+    px(cl + 1, fy + 14, 7, 1, P.kontur);
+  });
+  px(SCHACHT - 1, fy + LAUF, 2, 7, P.raum);                                 // Durchgang Schacht -> Kammer 1
+  tuer(fy);                                                                 // Tuer am Ende der Boss-Halle (T-1), statt rechtem Pfeiler
+  if (variante === 'd') lbGrund(i);                                         // D2: Laufband-Leiste unter dem Boden
+  for (let k = 0; k < 4; k++){
+    const d = hash(i*5 + k, 77), kx = raumX(k);
+    if (d < 0.55){                                                          // Fackel an der Wand, steht still
+      const fx = kx + (R >> 1) + (k % 2 ? 3 : -3);
+      px(fx, wy + 4, 1, 2, P.stein); px(fx, wy + 3, 1, 1, P.amberT);
+      DEKO.push({ i, k, art:'fackel', x:fx, y:wy + 3, w:1, h:3 });
+    }
+    if (d > 0.35 && !(variante !== '0' && (ged(i).tode[k] || []).length)){ // Geroell im hinteren Boden (weicht dem Gedenk-Platz)
+      const gx = inhaltX(k) + 10, gy = fy + 4;
+      if (gx + 4 <= kx + R - 2){
+        px(gx + 1, gy, 2, 1, P.stein); px(gx, gy + 1, 4, 2, P.wand); px(gx + 1, gy + 1, 1, 1, P.steinH); px(gx, gy + 3, 4, 1, P.kontur);
+        DEKO.push({ i, k, art:'geroell', x:gx, y:gy, w:4, h:4 });
+      }
+    }
+  }
+}
+function grundBauplatz(){
+  const i = ebenen.length, y = ebeneY(i), fy = y + BAND;
+  fels(SCHACHT, y, W - SCHACHT, EH);
+  for (let x = SCHACHT + 3; x < W - 3; x++){ if ((x >> 1) % 2){ px(x, fy + 2, 1, 1, P.steinH); px(x, y + EH - 4, 1, 1, P.steinH); } }
+  for (let yy = fy + 2; yy < y + EH - 3; yy++){ if ((yy >> 1) % 2){ px(SCHACHT + 3, yy, 1, 1, P.steinH); px(W - 4, yy, 1, 1, P.steinH); } }
+  const gy = y + EH;                                                        // gesperrte Tiefe
+  for (let yy = gy; yy < gy + TIEF; yy++) for (let x = SCHACHT; x < W; x++) px(x, yy, 1, 1, ((x + yy) % 6 < 3) ? P.kontur : P.nacht);
+  icon('schloss', SCHACHT + 4, gy + 8);
+}
+
+function held(x, y, schritt){
+  x = Math.round(x); y = Math.round(y);
+  px(x+1, y, 3, 2, P.amberH);            // Kopf
+  px(x, y+2, 5, 3, P.amber);             // Koerper
+  px(x+1, y+2, 3, 1, P.amberH);
+  if (schritt){ px(x, y+5, 1, 2, P.kontur); px(x+3, y+5, 1, 1, P.kontur); px(x+4, y+6, 1, 1, P.kontur); }
+  else { px(x+1, y+5, 1, 2, P.kontur); px(x+3, y+5, 1, 2, P.kontur); }
+  if (MESS.an && MESS.rects) MESS.rects.held.push({ x, y, w:5, h:7 });
+}
+function zeichneAufzug(){
+  const y = Math.round(aufzug.y);
+  px(5, 0, 2, y, P.steinH);                                                 // Seil
+  px(2, y, 8, 10, P.kontur);
+  px(2, y, 8, 1, P.steinH); px(2, y + 9, 8, 1, P.steinH);
+  px(2, y, 1, 10, P.stein); px(9, y, 1, 10, P.stein);
+  px(3, y + 1, 6, 1, P.amberT);                                             // Licht in der Kabine
+  if (aufzug.last) held(4, y + 2, false);
+}
+const RING = [[0,2],[1,1],[2,0],[3,0],[4,1],[5,2],[5,3],[5,4],[4,5],[3,6],[2,6],[1,5],[0,4],[0,3]];
+function balken(x, y, w, anteil, h){               // Lebensbalken (T-2): Rahmen Kontur, Rest Wand, Fuellung = Laenge + Farbe (zwei Signale, kein Gruen)
+  x = Math.round(x); y = Math.round(y);
+  px(x - 1, y - 1, w + 2, h + 2, P.kontur);
+  px(x, y, w, h, P.wand);
+  const n = anteil <= 0 ? 0 : Math.max(1, Math.round(anteil * w));
+  if (n) px(x, y, n, h, anteil > .5 ? P.amberH : anteil > .25 ? P.amber : P.prestige);
+  if (MESS.an && MESS.rects) MESS.rects.balken.push({ x, y, w, h, n, anteil });
+}
+function tuer(fy){                                 // Tuer am Ende der Boss-Halle (T-1): Pfosten und Sturz Stein hell, Oeffnung Kontur, Lampe Bernstein
+  const x = W - 6, y = fy + LAUF - 3;
+  px(x, y, 6, 1, P.steinH); px(x, y, 1, 10, P.steinH); px(x + 5, y, 1, 10, P.steinH);
+  px(x + 1, y + 1, 4, 9, P.kontur);
+  px(x + 2, y + 2, 2, 1, P.amber);
+}
+function zeichneEbene(i, t){
+  const e = ebenen[i], fy = bodenY(i);
+  let puls = 0;
+  if (modus === 'portal'){                                                  // Portal: ruhig, leuchtet nur bei Ankunft auf
+    const an = e.portal > t;
+    RING.forEach(([dx, dy]) => px(3 + dx, fy + LAUF + dy, 1, 1, an ? P.amberH : P.amberT));
+    if (an) for (let d = 0; d < 5; d++) px(3 + ((hash(d, t/50|0) * 6) | 0), fy + LAUF + ((hash(t/50|0, d) * 7) | 0), 1, 1, P.amberH);
+  }
+  const pulsK = e.raeume.findIndex(r => r.tot && !(r.ko > t));
+  const blink = ((t / 450) | 0) % 2 === 1;
+  e.raeume.forEach((r, k) => {
+    const kx = raumX(k), cl = inhaltX(k);
+    if (r.ko > t){                                                          // k.o.-Moment (T-3): Umriss bleibt kurz, Staub steigt, dann ↻
+      icon(r.typ + '-leer', cl, fy + 5);
+      const f = 1 - (r.ko - t) / (900 / tempo);
+      for (let d = 0; d < 6; d++) px(Math.round(cl + 1 + hash(d, k + i*9)*7), Math.round(fy + 12 - f*9 - (d % 3)), 1, 1, P.steinH);
+    } else {
+      let name = r.typ;
+      if (r.tot){ name = (k === pulsK && blink) ? r.typ + '-leer' : 'reaktivieren'; if (k === pulsK) puls++; }
+      icon(name, cl, fy + 5);
+      if (!r.tot && r.hp < .999 && (MONSTER.has(r.typ) || r.typ === 'falle')) balken(cl, fy + 2, 9, r.hp, 2);
+    }
+    ['gold','mana','ruhm'].forEach((art, sl) => {
+      const n = r.m[art].length; if (!n) return;
+      const nm = n === 1 ? `muenze-${art}` : n === 2 ? `muenze-${art}-2` : `muenze-${art}-haufen`;
+      const [w, h] = RASTER[nm] || [7, 7];
+      icon(nm, kx + R*(1 + 2*sl)/6 - w/2, muenzY(i, h));
+    });
+  });
+  if (variante === 'd'){ thronZeichnen(fy); const tb = (ged(i).tode[4] || []).length; if (tb) kerbenD(i, tb); }   // D4: Kerben im Thron
+  icon('boss', BOSS_X(), fy + 5);
+  if (variante !== 'd') icon('boss-marke', BOSS_X() + 1, fy - 7);
+  if (e.bossHp < .999) balken(BOSS_X(), fy + 2, 9, e.bossHp, 2);
+  (variante === 'd' ? ['gold','mana','ruhm'] : ['gold','mana']).forEach(art => {
+    const n = e.hort[art]; if (!n) return;
+    const nm = n === 1 ? `muenze-${art}` : n === 2 ? `muenze-${art}-2` : `muenze-${art}-haufen`;
+    const [w, h] = RASTER[nm] || [9, 9];
+    icon(nm, hortX(art) + (9 - w)/2, fy + 1 - h);                         // Hort bleibt auf der Kante (sonst stoesst die Zahl ans Trophaeen-Bord)
+  });
+  if (e.hx !== null){
+    held(e.hx, fy + LAUF, e.laeuft && ((t / 150) | 0) % 2 === 1);
+    if (e.hx < W - 12) balken(e.hx - 1, fy + 5, 6, e.hp, 2);
+    traegerZeichnen(e, i, fy, t);
+  }
+  if (e.gefallen && e.gefallen.bis > t) icon('schaedel', e.gefallen.x - 1, fy + LAUF);   // gefallener Held (T-3)
+  if (e.blend && e.blend.bis > t){
+    const cx = e.blend.k < 4 ? inhaltX(e.blend.k) + 4.5 : BOSS_X() + 4.5;
+    for (let d = 0; d < 10; d++){ const a = d*0.63, rr = 6 + 2*hash(d, (t/60)|0); px(Math.round(cx + Math.cos(a)*rr), Math.round(fy + 9 + Math.sin(a)*rr*0.6), 1, 1, P.steinH); }
+    icon('kampf', cx - 4.5, fy + 4);
+  }
+  if (e.funkel && e.funkel.bis > t){                                        // Ruf-Funkeln (T-4): 4 Pixel um die Muenze, wechseln alle 90 ms
+    const f = e.funkel, a = ((t / 90) | 0) % 2;
+    (a ? [[-1, -1], [f.w, -1], [-1, f.h], [f.w, f.h]] : [[f.w >> 1, -2], [-2, f.h >> 1], [f.w + 1, f.h >> 1]])
+      .forEach(([dx, dy]) => px(Math.round(f.x + dx), Math.round(f.y + dy), 1, 1, P.amberH));
+  }
+  tuer(fy);                                                                 // Tuer ueber dem Helden: er geht hinein (T-1)
+  puls += aderPuls(i, t, puls > 0);
+  if (variante === 'd') schaukasten(i, t);
+  if (MESS.an) MESS.puls[i] = puls;
+}
+
+function zeichne(t){
+  g = ctx;
+  ctx.drawImage(bg, 0, 0);
+  if (MESS.an){ MESS.rects = { held:[], muenze:[], balken:[] }; MESS.puls = []; }
+  oben.forEach(o => { held(o.x, OBEN - 8, o.geht && ((t / 150) | 0) % 2 === 1); itemSprite(o.x, OBEN - 8, o.item, t); });   // D3: Item schon in der Schlange
+  ebenen.forEach((e, i) => zeichneEbene(i, t));
+  if (modus === 'aufzug') zeichneAufzug();
+  funkenZeichnen(t);
+  fliegerZeichnen(t);
+  treppenGaenger.forEach(gg => { held(gg.x, gg.y, ((t / 150) | 0) % 2 === 1); itemSprite(gg.x, gg.y, gg.item, t); });
+  steiger.forEach(q => icon('muenze-' + q.art, q.x, q.y));                          // aufsteigende Muenzen (T-3)
+  g = ctxO; ctxO.clearRect(0, 0, W, H);
+  wanderer.forEach(w => { const [ww, hh] = RASTER['muenze-' + w.art] || [7,7]; icon('muenze-' + w.art, w.x - ww/2, w.y - hh); });
+  g = ctx;
+  if (MESS.an) messeBild();
+}
+
+const schneidet = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+function messeBild(){
+  const r = MESS.rects; MESS.frames++;
+  if (r.held.length) MESS.heldGesehen++;
+  if (r.muenze.length) MESS.muenzGesehen++;
+  if (r.balken.length) MESS.balkenGesehen++;
+  r.held.forEach(h => r.muenze.forEach(m => { if (schneidet(h, m)){ MESS.treffer++; if (!MESS.beispiel) MESS.beispiel = { h, m }; } }));
+  MESS.maxPuls = Math.max(MESS.maxPuls, ...MESS.puls.map(x => x || 0), 0);
+}
+window.__wf6 = {
+  info: () => ({ W, R, BX, BW, s, H, kern: SCHACHT + 4*R + 4*GANG + BOSS_MIN, zellen: R / ZELLE, ebenen: ebenen.length }),
+  deko: () => DEKO.map(d => Object.assign({}, d)),
+  wege: () => ebenen.map((e, i) => { const fy = bodenY(i);
+    return { held: { x: SCHACHT - 2, y: fy + LAUF, w: W - (SCHACHT - 2), h: 7 },
+             gaenge: [0,1,2,3].map(k => ({ x: raumX(k) + R, y: ebeneY(i) + BAND, w: GANG, h: WANDH + BODEN })) }; }),
+  messen(an){ Object.assign(MESS, { an, rects:null, frames:0, treffer:0, beispiel:null, maxPuls:0, heldGesehen:0, muenzGesehen:0,
+    balkenGesehen:0, ausgang:0, gefallen:0, ko:0, puls:[] }); },
+  stand: () => ({ frames: MESS.frames, treffer: MESS.treffer, beispiel: MESS.beispiel, maxPuls: MESS.maxPuls,
+    heldGesehen: MESS.heldGesehen, muenzGesehen: MESS.muenzGesehen, balkenGesehen: MESS.balkenGesehen,
+    ausgang: MESS.ausgang, gefallen: MESS.gefallen, ko: MESS.ko }),
+  oben: () => oben.map(o => ({ x: Math.round(o.x), geht: !!o.geht, auftrag: o.auftrag })),
+  balkenFarben: () => ({ rahmen: P.kontur, rest: P.wand, voll: P.amberH, halb: P.amber, knapp: P.prestige, boden: P.raum }),
+  tuer: i => ({ x: W - 6, y: bodenY(i) + LAUF - 3, w: 6, h: 10 }),
+  ebenen, wanderer, steiger, hud,
+  bernstein: () => ({ statisch: bernsteinAnteil(bg), bild: bernsteinAnteil(cv), variante }),
+  zettel: (x, y) => erinnerungTap(x, y),
+  geschichte(n){ for (let j = 0; j < n; j++){ const i = (Math.random()*ebenen.length) | 0, k = (Math.random()*5) | 0;
+    merke(i, k, k === 4 ? 'boss' : ebenen[i].raeume[k].typ, performance.now(), true); } baueGrund(); overlays(); funken.length = 0; },
+  zeichen(){                                                                 // Positionen (CSS-px im Fenster) fuer den 5-Sekunden-Test
+    const r = cv.getBoundingClientRect(), P2 = (x, y) => [Math.round(r.left + x*s), Math.round(r.top + y*s)];
+    const mitte = el => { if (!el) return null; const b = el.getBoundingClientRect(); return [Math.round(b.left + b.width/2), Math.round(b.top + b.height/2)]; };
+    const fy0 = bodenY(0), pyr = pyrBox(0, 2, (ged(0).tode[2] || []).length || 1), tag = ebenen.map(e => e.tag).find(Boolean);
+    const lf = lauf[0] && lauf[0].fenster ? lauf[0].fenster.getBoundingClientRect() : null, kf = lbFenster(0), tp = tafelPos(0);
+    return { aus: Math.round(r.top + (ebeneY(ebenen.length) + 2)*s), breite: innerWidth, z: [
+      ['Schädel-Pyramide', 'Gedächtnis', ...P2(pyr.x + pyr.w/2, pyr.y + pyr.h/2)],
+      ['Thron mit Kerben (Boss-Siege)', 'Gedächtnis', ...P2(BOSS_X() + 4.5, bodenY(2) - 2)],
+      ['Item über dem Helden mit Namensschild', 'Gedächtnis', ...(mitte(tag) || [0, 0])],
+      ['Bernstein-Ader (Zacken und Puls = Ruf)', 'Gedächtnis', ...P2(SCHACHT + 60, ebeneY(1) + 6)],
+      ['Laufband', 'Gedächtnis', lf ? Math.round(lf.left + 70) : 0, lf ? Math.round(lf.top + lf.height/2) : 0],
+      ['Statistik-Knopf der Ebene', 'Gedächtnis', ...P2(kf.x + 3.5, kf.y + 3.5)],
+      ['Schriftrolle oben (Statistik des Dungeons)', 'Gedächtnis', ...mitte(document.getElementById('kRolle'))],
+      ['Ader-Tafel (benannter Gegenstand)', 'Gedächtnis', ...P2(tp.x + 3, tp.y + 2.5)],
+      ['Münze an der Ader', 'Wirtschaft', ...P2(raumX(3) + R/6, ebeneY(0) + 10)],
+      ['↻ (Monster k.o., wiederbeleben)', 'Wirtschaft', ...P2(inhaltX(1) + 4.5, bodenY(1) + 9.5)],
+      ['Hort (Gold, Mana, Ruhm)', 'Wirtschaft', ...P2(hortX('mana') + 4.5, fy0 - 4)],
+      ['Monster in der Kammer', 'Spiel', ...P2(inhaltX(0) + 4.5, bodenY(1) + 9.5)]] };
+  },
+  traeger: () => ({ oben: oben.map(o => o.item ? o.item.i + 1 : 0), treppe: treppenGaenger.map(g => g.item ? g.item.i + 1 : 0), ebene: ebenen.map((e, i) => e.traeger ? (istBenannt(i) ? 'benannt' : 'namenlos') : '-'), aus: GED.map(G => G.aus) }),
+  statistik: r => statistikHtml(r === undefined ? 'dungeon' : r).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim(),
+  laufband: () => lauf.map((L, i) => ({ ebene: i + 1, spielt: !!(L && L.spielt), text: L && L.innen ? L.innen.textContent : '', wartend: L ? L.schlange.length : 0, fenster: lbFenster(i) })),
+  rufAnteil: () => ebenen.map((e, i) => ({ ebene: i + 1, stufe: rufAn ? rufStufe(i) : 1, anteil: bernsteinAnteil(bg, i) })),
+  kontrast: () => kontrastGate(),
+  legenden: () => legenden().map(l => ({ ebene: l.i + 1, kammer: l.k, klasse: l.h[1], laeufe: l.h[2] })),
+  pyramiden: () => ebenen.map((e, i) => Object.entries(ged(i).tode).filter(([k]) => +k < 4).map(([k, l]) => ({ ebene: i + 1, kammer: +k + 1, tode: l.length, lagen: lagen(l.length, spotBreit(+k)), box: pyrBox(i, +k, l.length) }))),
+  tempo(n){ tempo = n; document.getElementById('kTempo').textContent = 'Tempo ×' + n; }
+};
+
+const RUNDEN = { boss:3, kobold:3, waechter:3, bestie:3, falle:1, schatz:1, brunnen:1 };
+const SCHADEN_HELD = { kobold:.05, waechter:.08, bestie:.11, falle:.1, boss:.1 };
+const SCHADEN_MONSTER = { kobold:.3, waechter:.22, bestie:.18, boss:.25 };
+const KO_CHANCE = { kobold:.035, waechter:.015, bestie:.012 };
+function kampfStart(e, k, t){
+  const typ = k === 4 ? 'boss' : e.raeume[k].typ;
+  e.kampf = { k, typ, runde:0, runden: RUNDEN[typ] || 1, naechst:t };
+  if (typ !== 'schatz' && typ !== 'brunnen') e.blend = { k, bis: t + (e.kampf.runden*220 + 150) / tempo };
+}
+function runde(e, i, t){
+  const K = e.kampf, k = K.k, typ = K.typ, fy = bodenY(i), r = k < 4 ? e.raeume[k] : null;
+  const w = 0.5 + Math.random(), qx = (k < 4 ? inhaltX(k) : BOSS_X()) + 1, qy = fy + 5;
+  if (typ === 'boss'){
+    e.hp -= SCHADEN_HELD.boss*w; e.bossHp = Math.max(.15, e.bossHp - SCHADEN_MONSTER.boss*w);
+    if (K.runde === 0 || Math.random() < .35) steige(i, 4, qx, qy, Math.random() < .6 ? 'gold' : 'mana', t);
+  } else if (MONSTER.has(typ)){
+    e.hp -= SCHADEN_HELD[typ]*w;
+    if (Math.random() < KO_CHANCE[typ]){ r.hp = 0; r.tot = true; r.ko = t + 900 / tempo; if (MESS.an) MESS.ko++; }
+    else r.hp = Math.max(.15, r.hp - SCHADEN_MONSTER[typ]*w);
+    if (Math.random() < .35) steige(i, k, qx, qy, Math.random() < .55 ? 'gold' : 'mana', t);
+    if (Math.random() < .02) steige(i, k, qx, qy, 'ruhm', t);
+  } else if (typ === 'falle'){ e.hp -= SCHADEN_HELD.falle*w; r.hp = 0; if (Math.random() < .6) steige(i, k, qx, qy, 'mana', t); }
+  else if (typ === 'schatz'){ steige(i, k, qx, qy, 'gold', t); }
+  else if (typ === 'brunnen'){ e.hp = Math.min(1, e.hp + .25); if (Math.random() < .25) steige(i, k, qx, qy, 'ruhm', t); }
+  K.runde++;
+  if (e.hp <= 0){ faellt(e, i, t); return; }
+  if (K.runde >= K.runden || (r && r.tot)){ e.kampf = null; e.warte = t + 350 / tempo; e.ziel++; return; }
+  K.naechst = t + 220 / tempo;
+}
+function faellt(e, i, t){                                   // Held faellt (T-3 Gegenrichtung): Schaedel bleibt kurz, die Boerse steigt als Gold auf die Kante
+  e.hp = 0; e.kampf = null; e.blend = null; traegerWeg(e);
+  e.gefallen = { x: e.hx, bis: t + 1200 / tempo };
+  { const k = Math.min(e.ziel, 4); merke(i, k, k === 4 ? 'boss' : e.raeume[k].typ, t); }
+  steige(i, Math.min(e.ziel, 4), e.hx + 1, bodenY(i) + 4, 'gold', t);
+  e.hx = null; e.ziel = 0; e.naechst = t + (2100 + Math.random()*1200) / tempo;
+  if (MESS.an) MESS.gefallen++;
+}
+
+function steige(i, k, x, y, art, t){
+  const e = ebenen[i], fy = bodenY(i), [w, h] = RASTER['muenze-' + art] || [7, 7], sl = { gold:0, mana:1, ruhm:2 }[art];
+  if (k === 4 && art === 'ruhm') return;
+  if (k < 4 && e.raeume[k].m[art].length + steiger.filter(q => q.e === e && q.k === k && q.art === art).length >= 6) return;
+  const xZiel = k < 4 ? raumX(k) + R*(1 + 2*sl)/6 - w/2 : hortX(art) + (9 - w)/2;
+  steiger.push({ e, k, art, x, y, w, h, xZiel, yZiel: k === 4 ? fy + 1 - h : muenzY(i, h), phase:'auf' });
+  if (art === 'ruhm') flugSp(x + 3, fy + 2, '+★', 'ruhm', true);          // kleine Zahl in der Szene (T-4)
+}
+function lande(q, t){
+  if (q.k < 4) q.e.raeume[q.k].m[q.art].push(t); else q.e.hort[q.art] += 1;
+  if (q.art === 'ruhm') q.e.funkel = { x: q.x, y: q.y, w: q.w, h: q.h, bis: t + 700 / tempo };
+}
+
+const PLATZ = k => 16 + k*7;
+for (let k = 0; k < 3; k++) oben.push({ x: PLATZ(k), ziel: PLATZ(k), auftrag: null, geht: false });
+let obenNaechst = 0;
+function tickOben(t, dt){
+  if (anfragen.length){
+    const bereit = oben.filter(o => o.auftrag === null && Math.abs(o.x - o.ziel) <= .5).sort((a, b) => a.x - b.x), nr = anfragen[0];
+    const frei = bereit.find(o => o.item && o.item.i === nr) || bereit.find(o => !o.item) || bereit[0];   // D3: der Traeger geht zu seiner Ebene
+    if (frei){ if (frei.item && frei.item.i !== nr) frei.item = null;
+      frei.auftrag = anfragen.shift(); frei.ziel = 2; obenNaechst = Math.max(obenNaechst, t + (300 + Math.random()*600) / tempo); }
+  }
+  const v = 0.024 * tempo * dt;                                             // ~24 sp/s, ruhig
+  for (let n = oben.length - 1; n >= 0; n--){
+    const o = oben[n], d = o.ziel - o.x;
+    if (Math.abs(d) > .5){ o.x += Math.sign(d) * Math.min(v, Math.abs(d)); o.geht = true; continue; }
+    o.geht = false;
+    if (o.auftrag !== null){ abstieg(o.auftrag, t, o.item); oben.splice(n, 1); }
+  }
+  const wartend = oben.filter(o => o.auftrag === null).sort((a, b) => a.x - b.x);
+  wartend.forEach((o, k) => { o.ziel = PLATZ(k); });
+  if (wartend.length < 4 && t > obenNaechst){                              // hoechstens vier oben, einer davon meist unterwegs
+    obenNaechst = t + (900 + Math.random()*1500) / tempo;
+    oben.push({ x: W + 3, ziel: PLATZ(wartend.length), auftrag: null, geht: true, item: neuesItem() });
+  }
+}
+function abstieg(i, t, item){
+  const e = ebenen[i]; if (!e) return;
+  if (modus === 'treppe') treppenGaenger.push({ i, x: stufeX(0, 0), y: OBEN - 7, item });
+  else if (modus === 'aufzug') aufzug.liste.push(i);
+  else ankunft(e, t, item);
+}
+
+const treppenGaenger = [];
+const tuerY = i => bodenY(i) + LAUF;                       // Oberkante des Heldenwegs
+function ankunft(e, t, item){ e.hx = SCHACHT - 2; e.ziel = 0; e.hp = 1; e.warte = t + 150 / tempo; if (modus === 'portal') e.portal = t + 600; traegerAnkunft(e, t, item); }
+function zielX(e){ return e.ziel < 4 ? inhaltX(e.ziel) - 6 : e.ziel === 4 ? BX - 4 : W - 5; }   // links vom Inhalt · Boss aus der Tuer · Ausgang (T-1)
+function tick(t){
+  const dt = Math.min(64, t - (tAlt || t)); tAlt = t;
+  ebenen.forEach((e, i) => {
+    e.raeume.forEach((r, k) => { if (!r.tot && r.hp < 1 && !(e.kampf && e.kampf.k === k) && (e.hx === null || e.ziel > k)) r.hp = Math.min(1, r.hp + 0.0012 * tempo * dt); });
+    if (e.bossHp < 1 && !(e.kampf && e.kampf.k === 4) && (e.hx === null || e.ziel > 4)) e.bossHp = Math.min(1, e.bossHp + 0.0012 * tempo * dt);
+    if (e.hx === null){
+      if (t < e.naechst || e.wartetAufZugang) return;
+      e.wartetAufZugang = true; anfragen.push(i);                        // ein Held oben macht sich auf den Weg
+      return;
+    }
+    if (e.kampf){ e.laeuft = false; if (t >= e.kampf.naechst) runde(e, i, t); return; }
+    if (t < e.warte){ e.laeuft = false; return; }
+    const z = zielX(e), v = 0.03 * tempo * dt;                // ~30 sp/s
+    if (e.hx < z - 0.5){ e.hx = Math.min(z, e.hx + v); e.laeuft = true; return; }
+    e.laeuft = false;
+    if (e.ziel === 5){                                        // durch die Tuer hinaus (T-1)
+      ausgangTraeger(e, i, t); e.hx = null; e.ziel = 0; e.naechst = t + (900 + Math.random()*1200) / tempo; traegerWeg(e);
+      if (MESS.an) MESS.ausgang++;
+      merkeAusgang(i, t);
+      return;
+    }
+    if (e.ziel < 4 && e.raeume[e.ziel].tot){ e.warte = t + 200 / tempo; e.ziel++; return; }   // k.o.-Kammer: der Held geht vorbei
+    kampfStart(e, e.ziel, t);
+  });
+  tickOben(t, dt);
+  if (modus === 'aufzug'){
+    const v = 0.08 * tempo * dt;
+    if (aufzug.ziel === null && t > aufzug.halt && aufzug.liste.length){
+      aufzug.ziel = aufzug.last ? tuerY(aufzug.liste[0]) - 2 : 4;
+    }
+    if (aufzug.ziel !== null){
+      const d = aufzug.ziel - aufzug.y;
+      if (Math.abs(d) <= v){
+        aufzug.y = aufzug.ziel; aufzug.ziel = null; aufzug.halt = t + 350 / tempo;
+        if (!aufzug.last){ aufzug.last = true; }
+        else { const i = aufzug.liste.shift(); const e = ebenen[i]; aufzug.last = false; if (e){ e.wartetAufZugang = false; ankunft(e, t); } }
+      } else aufzug.y += Math.sign(d) * v;
+    }
+  }
+  for (let n = treppenGaenger.length - 1; n >= 0; n--){
+    const gg = treppenGaenger[n], zy = tuerY(gg.i);
+    gg.y += 0.04 * tempo * dt; gg.x = treppeX(gg.y);
+    if (gg.y >= zy){ treppenGaenger.splice(n, 1); const e = ebenen[gg.i]; if (e){ e.wartetAufZugang = false; ankunft(e, t, gg.item); } }
+  }
+  ebenen.forEach((e, i) => {
+    if (t < (e.wanderNaechst || 0)) return;
+    e.wanderNaechst = t + 700 / tempo;
+    let best = null;
+    e.raeume.forEach((r, k) => (variante === 'd' ? ['gold','mana','ruhm'] : ['gold','mana']).forEach((art, sl) => {   // D: auch Ruhm wandert in den Hort
+      const ts = r.m[art][0]; if (ts !== undefined && t - ts > 5000 / tempo && (!best || ts < best.ts)) best = { r, k, art, sl, ts };
+    }));
+    if (!best) return;
+    best.r.m[best.art].shift();
+    const fy = bodenY(i);
+    const hw = (RASTER['muenze-' + best.art] || [7, 7])[1];
+    wanderer.push({ e, art:best.art, x: raumX(best.k) + R*(1 + 2*best.sl)/6, y: muenzY(i, hw) + hw, phase:'auf',
+      yAder: ebeneY(i) + BAND, yHort: fy + 1, ziel: hortX(best.art) + 4.5 });
+  });
+  for (let n = wanderer.length - 1; n >= 0; n--){
+    const w = wanderer[n], v = 0.05 * tempo * dt;
+    if (w.phase === 'auf'){ w.y -= v; if (w.y <= w.yAder){ w.y = w.yAder; w.phase = 'quer'; } }
+    else if (w.phase === 'quer'){ w.x += v * 1.4; if (w.x >= w.ziel){ w.x = w.ziel; w.phase = 'ab'; } }
+    else { w.y += v; if (w.y >= w.yHort){ w.e.hort[w.art] += 1; wanderer.splice(n, 1); } }
+  }
+  for (let n = steiger.length - 1; n >= 0; n--){
+    const q = steiger[n], v = 0.05 * tempo * dt;
+    if (q.phase === 'auf'){ q.y -= v; if (q.y <= q.yZiel){ q.y = q.yZiel; q.phase = 'quer'; } }
+    else { const d = q.xZiel - q.x; if (Math.abs(d) <= v * 1.4){ q.x = q.xZiel; lande(q, t); steiger.splice(n, 1); } else q.x += Math.sign(d) * v * 1.4; }
+  }
+}
+
+cv.addEventListener('pointerdown', ev => {
+  const r = cv.getBoundingClientRect();
+  const x = (ev.clientX - r.left) / s, y = (ev.clientY - r.top) / s;
+  if (erinnerungTap(x, y)) return;
+  const i = Math.floor((y - OBEN) / EH);
+  if (i === ebenen.length && y - ebeneY(i) > BAND){ graben(ev); return; }
+  const e = ebenen[i]; if (!e) return;
+  const fy = bodenY(i);
+  if (x >= BX){                                             // Hort
+    if (x >= hortX('gold') - 1 && y > fy - 11 && y < fy + 9){
+      let art = x < hortX('mana') ? 'gold' : (variante === 'd' && x >= hortX('ruhm')) ? 'ruhm' : 'mana';
+      if (!e.hort[art]) art = ['gold','mana','ruhm'].find(a => e.hort[a]) || art;
+      if (e.hort[art]){ const n = e.hort[art]; hud[art] += n*WERT[art]; e.hort[art] = 0; fliege(ev, '+' + n*WERT[art] + ({ gold:'◇', mana:'◆', ruhm:'★' })[art], art); }
+    }
+    return;
+  }
+  for (let k = 0; k < 4; k++){
+    const rx = raumX(k); if (x < rx || x >= rx + R) continue;
+    const rm = e.raeume[k];
+    if (y > fy - 11 && y < fy + 3){                          // Muenz-Kante, grosszuegig
+      const sl = Math.min(2, Math.floor((x - rx) / (R/3))), art = ['gold','mana','ruhm'][sl];
+      const n = rm.m[art].length; if (!n) return;
+      rm.m[art] = []; hud[art] += n*WERT[art]; fliege(ev, '+' + n*WERT[art] + { gold:'◇', mana:'◆', ruhm:'★' }[art], art);
+      return;
+    }
+    if (rm.tot && y >= fy + 3 && y < fy + BODEN){ rm.tot = false; rm.hp = 1; rm.ko = 0; hud.mana = Math.max(0, hud.mana - 5); fliege(ev, '−5◆', 'mana'); }
+    return;
+  }
+});
+function graben(ev){
+  if (ebenen.length >= NAMEN.length) return;
+  hud.gold = Math.max(0, hud.gold - 60); hud.mana = Math.max(0, hud.mana - 20);
+  fliege(ev, '−60◇ −20◆', 'gold');
+  neueEbene(['kobold','falle','schatz','kobold'].map((t, n) => n === 0 ? 'kobold' : (Math.random() < .5 ? t : 'falle')));
+  layout();
+}
+function fliege(ev, text, art){
+  const f = document.createElement('div'); f.className = 'flug'; f.textContent = text;
+  f.style.left = (ev.clientX - 14) + 'px'; f.style.top = (ev.clientY - 14) + 'px';
+  f.style.color = { gold:P.gold, mana:P.mana, ruhm:P.ruhm }[art];
+  document.body.appendChild(f); setTimeout(() => f.remove(), 820);
+  hudZeigen(art);
+}
+function flugSp(x, y, text, art, lang){            // kleine Zahl in der Szene (Buehnen-Koordinaten in sp), z. B. "+★" beim Ruf (T-4)
+  const f = document.createElement('div'); f.className = 'flug sp' + (lang ? ' lang' : ''); f.textContent = text;
+  f.style.left = (x*s - 8) + 'px'; f.style.top = (y*s - 12) + 'px'; f.style.color = { gold:P.gold, mana:P.mana, ruhm:P.ruhm }[art];
+  buehne.appendChild(f); setTimeout(() => f.remove(), lang ? 1450 : 820);
+}
+function hudZeigen(art){
+  document.querySelector('#hGold b').textContent = hud.gold;
+  document.querySelector('#hMana b').textContent = hud.mana;
+  document.querySelector('#hRuhm b').textContent = hud.ruhm;
+  const id = { gold:'hGold', mana:'hMana', ruhm:'hRuhm' }[art];
+  if (id){ const e = document.getElementById(id); e.classList.add('blitz'); setTimeout(() => e.classList.remove('blitz'), 150); }
+}
+
+function weckruf(){
+  const top = schnitt.scrollTop, bot = top + schnitt.clientHeight, off = buehne.offsetTop;
+  const sum = { oben:{ ko:0, g:0, m:0, i:-1 }, unten:{ ko:0, g:0, m:0, i:-1 } };
+  ebenen.forEach((e, i) => {
+    const mitte = off + (ebeneY(i) + EH/2) * s;
+    const seite = mitte < top + 10 ? 'oben' : mitte > bot - 10 ? 'unten' : null; if (!seite) return;
+    const z = sum[seite];
+    const ko = e.raeume.filter(r => r.tot).length;
+    const g = e.raeume.reduce((a, r) => a + r.m.gold.length, 0) + e.hort.gold;
+    const m = e.raeume.reduce((a, r) => a + r.m.mana.length, 0) + e.hort.mana;
+    z.ko += ko; z.g += g; z.m += m;
+    if (ko || g || m){ if (seite === 'oben') z.i = i; else if (z.i < 0) z.i = i; }
+  });
+  [['wOben','oben','▲'], ['wUnten','unten','▼']].forEach(([id, k, pf]) => {
+    const w = document.getElementById(id), z = sum[k], was = [];
+    if (z.ko) was.push(`<span class="ko">↻ ${z.ko} k.o.</span>`);
+    if (z.g) was.push(`<span class="g">◇${z.g}</span>`);
+    if (z.m) was.push(`<span class="m">◆${z.m}</span>`);
+    w.classList.toggle('an', was.length > 0);
+    w.innerHTML = was.length ? `${pf} ${k} wartet: ${was.join(' · ')}` : '';
+    w.onclick = () => { if (z.i >= 0) schnitt.scrollTo({ top: off + ebeneY(z.i)*s - schnitt.clientHeight/2, behavior:'smooth' }); };
+  });
+}
+
+function zahlenZeigen(){
+  ebenen.forEach((e, i) => { const z = zahlen[i]; if (!z) return;
+    z.gold.textContent = e.hort.gold ? e.hort.gold : ''; z.mana.textContent = e.hort.mana ? e.hort.mana : ''; if (z.ruhm) z.ruhm.textContent = e.hort.ruhm ? e.hort.ruhm : ''; });
+}
+
+document.getElementById('kModus').onclick = ev => {
+  modus = { treppe:'portal', portal:'aufzug', aufzug:'treppe' }[modus];
+  ev.currentTarget.textContent = { aufzug:'Aufzug', treppe:'Treppe', portal:'Portal' }[modus];
+  aufzug.liste.length = 0; aufzug.ziel = null; aufzug.last = false; treppenGaenger.length = 0;
+  anfragen.length = 0; oben.forEach(o => { o.auftrag = null; });
+  ebenen.forEach(e => { e.wartetAufZugang = false; });
+  baueGrund();
+};
+document.getElementById('kVar').onclick = ev => {
+  variante = { d:'b', b:'0', '0':'d', a:'d', c:'d' }[variante];
+  ebenen.forEach(traegerWeg);
+  ev.currentTarget.textContent = VAR_TEXT[variante]; ev.currentTarget.classList.toggle('an', variante !== '0');
+  buehne.querySelectorAll('.zettel').forEach(z => z.remove());
+  layout();
+};
+document.getElementById('kMoment').onclick = () => {
+  if (variante === '0'){ variante = 'd'; document.getElementById('kVar').textContent = VAR_TEXT.d; document.getElementById('kVar').classList.add('an'); layout(); }
+  const zwei = [1, 2].filter(i => i < ebenen.length);                        // D2: zwei Namens-Momente gleichzeitig (E2 und E3)
+  zwei.forEach(i => { ged(i).item = null; ged(i).aus = 0; }); baueGrund(); overlays();
+  const t0 = performance.now(); zwei.forEach(i => nenne(i, t0));
+};
+document.getElementById('kTempo').onclick = ev => { tempo = tempo === 1 ? 2 : 1; ev.currentTarget.textContent = 'Tempo ×' + tempo; };
+document.getElementById('kHandy').onclick = ev => { schnitt.classList.toggle('handy'); ev.currentTarget.classList.toggle('an'); layout(); };
+const seite = document.getElementById('seite');
+const blattZu = () => seite.classList.remove('auf');
+document.getElementById('kHilfe').onclick = () => seite.classList.toggle('auf');
+document.getElementById('kZu').onclick = blattZu;
+document.getElementById('kLos').onclick = blattZu;
+if (window.innerWidth < 900) seite.classList.add('auf');                   // Handy: beim Start erst lesen, dann spielen
+window.addEventListener('resize', layout);
+schnitt.addEventListener('scroll', weckruf, { passive:true });
+
+document.getElementById('kRolle').onclick = () => {
+  const c = document.getElementById('chronik');
+  if (c.classList.contains('auf')) chronikZu(); else oeffneStatistik('dungeon');
+};
+document.getElementById('cZu').onclick = chronikZu;
+const sw = (id, wert, aendern) => { const el = document.getElementById(id); if (el.type === 'checkbox') el.checked = wert; else el.value = wert; el.onchange = () => aendern(el.type === 'checkbox' ? el.checked : el.value); };
+sw('sNamen', namenAn, v => { namenAn = v; overlays(); if (document.getElementById('chronik').classList.contains('auf')) oeffneStatistik(statReiter); });
+sw('sBoss', bossArt, v => { bossArt = v; baueGrund(); });
+sw('sLauf', lbArt, v => { lbArt = v; layout(); });
+
+sw('sRuf', rufAn, v => { rufAn = v; const t = performance.now(); ebenen.forEach(e => { e.rufWechsel = rufAn ? t + 1800 : 0; }); baueGrund(); });
+sw('sTraeger', traegerAn, v => { traegerAn = v; if (!traegerAn) ebenen.forEach(traegerWeg); });
+sw('sDiamant', diamantAn, v => { diamantAn = v; });
+
+const KIT_RASTER = { 'muenze-gold':'7x7', 'muenze-mana':'7x7', 'muenze-ruhm':'7x7', schloss:'7x7', schaedel:'7x7', 'boss-marke':'7x7',
+  'muenze-gold-2':'9x8', 'muenze-mana-2':'9x8', 'muenze-ruhm-2':'9x8' };                 // alle anderen Kit-Icons: 9 x 9
+ICONS.forEach(n => { const [w, h] = (KIT_RASTER[n] || '9x9').split('x').map(Number); RASTER[n] = [w, h]; });
+Promise.resolve().then(() => Promise.all(ICONS.map(n => new Promise(res => {
+  const im = new Image(); im.onload = () => { IMG[n] = im; if (!RASTER[n]) RASTER[n] = [im.width / 2 | 0 || 9, im.height / 2 | 0 || 9]; res(); };
+  im.onerror = res; im.src = UI + n + '.svg';
+})))).then(() => {
+  const leg = document.getElementById('legende');
+  [['kobold','Monster in der Kammer'], ['falle','Falle'], ['schatz','Schatz'], ['boss','Boss · Ende der Ebene'],
+   ['muenze-gold','Gold auf der Kammer-Kante'], ['muenze-gold-2','zwei liegen'], ['muenze-gold-haufen','drei und mehr · auch im Hort'],
+   ['muenze-mana','Mana'], ['muenze-ruhm','Ruhm ★ · selten, leuchtet kurz auf'], ['reaktivieren','↻ statt Monster: k.o., antippen'],
+   ['schaedel','Held gefallen'], ['schloss','gesperrte Tiefe']].forEach(([n, txt]) => {
+    if (!IMG[n]) return;
+    const d = document.createElement('div'); d.className = 'leg';
+    const [w, h] = RASTER[n]; const im = document.createElement('img'); im.src = UI + n + '.svg'; im.width = w*3; im.height = h*3; im.alt = '';
+    d.append(im, document.createTextNode(txt)); leg.appendChild(d);
+  });
+  document.getElementById('kVar').textContent = VAR_TEXT[variante];
+  document.getElementById('kVar').classList.toggle('an', variante !== '0');
+  if (Q.has('nohilfe')) seite.classList.remove('auf');
+  layout();
+  if (Q.get('moment') === '1') setTimeout(() => document.getElementById('kMoment').click(), 300);
+  if (rufAn && !Q.has('stehen')){ const t0 = performance.now(); ebenen.forEach(e => { e.rufWechsel = t0 + 1800; }); }
+  if (Q.get('stand') === 'test'){                                            // fuer das Testbild: normale Spielzustaende, fest statt zufaellig
+    const e = ebenen[0]; ebenen[1].raeume[1].tot = true; ebenen[1].raeume[1].hp = 0;
+    e.raeume[1].m.gold = [1e12]; e.raeume[1].m.mana = [1e12]; e.raeume[3].m.gold = [1e12, 1e12]; e.hort.gold = 3; e.hort.mana = 2; e.hort.ruhm = 2; }
+  if (Q.has('spaet')) window.__wf6.geschichte(+Q.get('spaet') || 30);         // ?spaet=30: 30 weitere Tode, fuer Screenshots
+  if (variante === 'd' && traegerAn){ oben[0].item = { i: 0 }; if (oben[2]) oben[2].item = { i: 1 }; }   // D3: Traeger stehen schon in der Schlange
+  if (Q.has('blink')) setTimeout(() => { ebenen[0].kastenBlink = performance.now() + 60000; }, 300);
+  if (Q.has('stat')) setTimeout(() => { const r = Q.get('stat'); oeffneStatistik(!r || r === 'dungeon' ? 'dungeon' : +r - 1); }, 300);
+  if (Q.has('meldung')) setTimeout(() => {                                   // ?meldung: je Ebene eine frische Meldung im Laufband
+    const t0 = performance.now(); [[0, 1], [1, 2], [2, 4]].forEach(([i, k]) => { if (ebenen[i]) merke(i, k, k === 4 ? 'boss' : ebenen[i].raeume[k].typ, t0); }); }, 400);
+  const schleife = t => { tick(t); zeichne(t); zahlenZeigen(); requestAnimationFrame(schleife); };
+  requestAnimationFrame(schleife);
+  setInterval(() => { weckruf(); hudZeigen(); }, 600);
+});
+</script>
+</body>
+</html>
